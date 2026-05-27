@@ -17,6 +17,9 @@ var full_task_input: LineEdit
 var full_task_list: VBoxContainer
 var full_progress_label: Label
 var full_feedback_label: Label
+var edit_window: Window
+var edit_input: LineEdit
+var editing_task_id := ""
 var tasks_completed_today := 0
 
 func _ready() -> void:
@@ -67,6 +70,21 @@ func delete_task(task_id: String) -> void:
 	_render_tasks()
 	_show_feedback("任务已移除")
 	task_deleted.emit(task_id)
+	tasks_changed.emit(get_tasks())
+
+func update_task_title(task_id: String, new_title: String) -> void:
+	var clean_title := new_title.strip_edges()
+	if clean_title == "":
+		_show_feedback("任务标题不能为空")
+		return
+	for i in range(tasks.size()):
+		var task: Dictionary = tasks[i]
+		if String(task.get("id", "")) == task_id:
+			task["title"] = clean_title
+			tasks[i] = task
+			break
+	_render_tasks()
+	_show_feedback("任务已更新")
 	tasks_changed.emit(get_tasks())
 
 func clear_completed_tasks() -> void:
@@ -167,6 +185,7 @@ func _build_ui() -> void:
 	scroll.add_child(task_list)
 
 	_build_full_task_window()
+	_build_edit_window()
 	_update_progress()
 
 func _render_tasks() -> void:
@@ -191,6 +210,7 @@ func _make_task_item(task: Dictionary) -> TaskItem:
 	var item := TaskItem.new()
 	item.setup(task)
 	item.toggled.connect(toggle_task)
+	item.edit_requested.connect(_open_edit_window)
 	item.delete_requested.connect(delete_task)
 	return item
 
@@ -243,6 +263,68 @@ func _open_full_task_window() -> void:
 	full_task_window.popup_centered()
 	if full_task_input:
 		full_task_input.grab_focus()
+
+func _open_edit_window(task_id: String, current_title: String) -> void:
+	if edit_window == null:
+		_build_edit_window()
+	editing_task_id = task_id
+	edit_input.text = current_title
+	edit_window.popup_centered()
+	edit_input.grab_focus()
+	edit_input.select_all()
+
+func _save_edit_window() -> void:
+	if editing_task_id == "":
+		return
+	update_task_title(editing_task_id, edit_input.text)
+	editing_task_id = ""
+	edit_window.hide()
+
+func _build_edit_window() -> void:
+	if edit_window != null:
+		return
+	edit_window = Window.new()
+	edit_window.title = "编辑任务"
+	edit_window.size = Vector2i(420, 150)
+	edit_window.visible = false
+	edit_window.close_requested.connect(edit_window.hide)
+	add_child(edit_window)
+
+	var panel := PanelContainer.new()
+	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	panel.add_theme_stylebox_override("panel", _panel_style(Color(0.94, 0.92, 0.78), Color(0.32, 0.37, 0.30)))
+	edit_window.add_child(panel)
+
+	var root := VBoxContainer.new()
+	root.add_theme_constant_override("separation", 10)
+	panel.add_child(root)
+
+	var title := Label.new()
+	title.text = "编辑任务"
+	title.add_theme_font_size_override("font_size", 18)
+	title.add_theme_color_override("font_color", Color(0.14, 0.24, 0.16))
+	root.add_child(title)
+
+	edit_input = LineEdit.new()
+	edit_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_apply_input_theme(edit_input)
+	edit_input.text_submitted.connect(func(_text: String): _save_edit_window())
+	root.add_child(edit_input)
+
+	var buttons := HBoxContainer.new()
+	buttons.alignment = BoxContainer.ALIGNMENT_END
+	buttons.add_theme_constant_override("separation", 8)
+	root.add_child(buttons)
+
+	var cancel_button := Button.new()
+	cancel_button.text = "取消"
+	cancel_button.pressed.connect(edit_window.hide)
+	buttons.add_child(cancel_button)
+
+	var save_button := Button.new()
+	save_button.text = "保存"
+	save_button.pressed.connect(_save_edit_window)
+	buttons.add_child(save_button)
 
 func _build_full_task_window() -> void:
 	if full_task_window != null:

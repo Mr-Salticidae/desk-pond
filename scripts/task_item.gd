@@ -2,11 +2,13 @@ extends HBoxContainer
 class_name TaskItem
 
 signal toggled(task_id: String, done: bool)
+signal edit_requested(task_id: String, current_title: String)
 signal delete_requested(task_id: String)
 
 var task_id := ""
 var checkbox: CheckBox
 var title_label: Label
+var task_title := ""
 var is_done := false
 
 func setup(task: Dictionary) -> void:
@@ -14,6 +16,7 @@ func setup(task: Dictionary) -> void:
 	add_theme_constant_override("separation", 8)
 	alignment = BoxContainer.ALIGNMENT_CENTER
 	task_id = String(task.get("id", ""))
+	task_title = String(task.get("title", ""))
 	is_done = bool(task.get("done", false))
 	checkbox = CheckBox.new()
 	checkbox.button_pressed = is_done
@@ -22,7 +25,7 @@ func setup(task: Dictionary) -> void:
 	add_child(checkbox)
 
 	title_label = Label.new()
-	title_label.text = String(task.get("title", ""))
+	title_label.text = task_title
 	title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title_label.clip_text = true
 	title_label.add_theme_font_size_override("font_size", 14)
@@ -31,6 +34,13 @@ func setup(task: Dictionary) -> void:
 	if is_done:
 		title_label.add_theme_color_override("font_color", Color(0.42, 0.50, 0.40))
 	add_child(title_label)
+
+	var edit_button := Button.new()
+	edit_button.text = "改"
+	edit_button.tooltip_text = "编辑任务"
+	edit_button.custom_minimum_size = Vector2(30, 26)
+	edit_button.pressed.connect(func(): edit_requested.emit(task_id, task_title))
+	add_child(edit_button)
 
 	var delete_button := Button.new()
 	delete_button.text = "×"
