@@ -44,10 +44,10 @@ func get_default_save() -> Dictionary:
 func check_new_day(data: Dictionary) -> Dictionary:
 	var today := _today()
 	if data.get("date", today) != today:
+		data["tasks"] = _carry_open_tasks(data.get("tasks", []), today)
 		data["date"] = today
 		data["pomodoro_completed"] = 0
 		data["tasks_completed"] = 0
-		data["tasks"] = []
 	return data
 
 func current_datetime() -> String:
@@ -57,6 +57,22 @@ func current_datetime() -> String:
 func _today() -> String:
 	var d := Time.get_datetime_dict_from_system()
 	return "%04d-%02d-%02d" % [d.year, d.month, d.day]
+
+func _carry_open_tasks(saved_tasks: Variant, today: String) -> Array:
+	if typeof(saved_tasks) != TYPE_ARRAY:
+		return []
+	var carried: Array = []
+	for item in saved_tasks:
+		if typeof(item) != TYPE_DICTIONARY:
+			continue
+		var task: Dictionary = item.duplicate(true)
+		if bool(task.get("done", false)):
+			continue
+		task["done"] = false
+		task["completed_at"] = null
+		task["carried_to"] = today
+		carried.append(task)
+	return carried
 
 func _merge_defaults(saved: Dictionary, defaults: Dictionary) -> Dictionary:
 	for key in defaults.keys():

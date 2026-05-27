@@ -72,11 +72,11 @@ func delete_task(task_id: String) -> void:
 	task_deleted.emit(task_id)
 	tasks_changed.emit(get_tasks())
 
-func update_task_title(task_id: String, new_title: String) -> void:
+func update_task_title(task_id: String, new_title: String) -> bool:
 	var clean_title := new_title.strip_edges()
 	if clean_title == "":
 		_show_feedback("任务标题不能为空")
-		return
+		return false
 	for i in range(tasks.size()):
 		var task: Dictionary = tasks[i]
 		if String(task.get("id", "")) == task_id:
@@ -86,6 +86,7 @@ func update_task_title(task_id: String, new_title: String) -> void:
 	_render_tasks()
 	_show_feedback("任务已更新")
 	tasks_changed.emit(get_tasks())
+	return true
 
 func clear_completed_tasks() -> void:
 	var remaining: Array = []
@@ -276,7 +277,9 @@ func _open_edit_window(task_id: String, current_title: String) -> void:
 func _save_edit_window() -> void:
 	if editing_task_id == "":
 		return
-	update_task_title(editing_task_id, edit_input.text)
+	if not update_task_title(editing_task_id, edit_input.text):
+		edit_input.grab_focus()
+		return
 	editing_task_id = ""
 	edit_window.hide()
 
