@@ -17,8 +17,10 @@ var paused_from_state := "idle"
 var focus_seconds := 25 * 60
 var break_seconds := 5 * 60
 var seconds_left := focus_seconds
+var active_duration_seconds := focus_seconds
 var mode_label: Label
 var time_label: Label
+var progress_bar: ProgressBar
 var focus_spin: SpinBox
 var break_spin: SpinBox
 var start_button: Button
@@ -36,6 +38,7 @@ func setup(settings: Dictionary) -> void:
 	focus_seconds = focus_minutes * 60
 	break_seconds = break_minutes * 60
 	seconds_left = focus_seconds
+	active_duration_seconds = focus_seconds
 	if time_label == null:
 		_build_ui()
 	_set_spin_values(focus_minutes, break_minutes)
@@ -46,6 +49,7 @@ func start_focus() -> void:
 		return
 	if state == "idle" or state == "completed":
 		seconds_left = focus_seconds
+		active_duration_seconds = focus_seconds
 	_apply_state("focusing")
 	countdown_timer.start()
 
@@ -61,6 +65,7 @@ func pause_or_resume() -> void:
 func reset_timer() -> void:
 	countdown_timer.stop()
 	seconds_left = focus_seconds
+	active_duration_seconds = focus_seconds
 	_apply_state("idle")
 	_update_time_label()
 
@@ -84,6 +89,7 @@ func _on_timeout() -> void:
 
 func _start_break() -> void:
 	seconds_left = break_seconds
+	active_duration_seconds = break_seconds
 	_apply_state("break")
 	_update_time_label()
 	countdown_timer.start()
@@ -149,6 +155,16 @@ func _build_ui() -> void:
 	time_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	root.add_child(time_label)
 
+	progress_bar = ProgressBar.new()
+	progress_bar.min_value = 0
+	progress_bar.max_value = 100
+	progress_bar.value = 0
+	progress_bar.show_percentage = false
+	progress_bar.custom_minimum_size = Vector2(0, 12)
+	progress_bar.add_theme_stylebox_override("background", _bar_style(Color(0.73, 0.66, 0.50), Color(0.42, 0.32, 0.23)))
+	progress_bar.add_theme_stylebox_override("fill", _bar_style(Color(0.26, 0.58, 0.60), Color(0.26, 0.58, 0.60)))
+	root.add_child(progress_bar)
+
 	var buttons := HBoxContainer.new()
 	buttons.add_theme_constant_override("separation", 6)
 	root.add_child(buttons)
@@ -213,6 +229,12 @@ func _update_time_label() -> void:
 		var minutes := int(seconds_left / 60)
 		var seconds := seconds_left % 60
 		time_label.text = "%02d:%02d" % [minutes, seconds]
+	if progress_bar:
+		if active_duration_seconds <= 0:
+			progress_bar.value = 0
+		else:
+			var elapsed := active_duration_seconds - seconds_left
+			progress_bar.value = clamp(float(elapsed) / float(active_duration_seconds) * 100.0, 0.0, 100.0)
 
 func _set_spin_values(focus_minutes: int, break_minutes: int) -> void:
 	if focus_spin:
@@ -229,6 +251,7 @@ func _on_duration_changed() -> void:
 	break_seconds = break_minutes * 60
 	if state == "idle" or state == "completed":
 		seconds_left = focus_seconds
+		active_duration_seconds = focus_seconds
 		_update_time_label()
 	settings_changed.emit({
 		"focus_minutes": focus_minutes,
@@ -251,4 +274,18 @@ func _panel_style(fill: Color, border: Color) -> StyleBoxFlat:
 	style.content_margin_right = 10
 	style.content_margin_top = 8
 	style.content_margin_bottom = 8
+	return style
+
+func _bar_style(fill: Color, border: Color) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = fill
+	style.border_color = border
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
+	style.corner_radius_top_left = 3
+	style.corner_radius_top_right = 3
+	style.corner_radius_bottom_left = 3
+	style.corner_radius_bottom_right = 3
 	return style
