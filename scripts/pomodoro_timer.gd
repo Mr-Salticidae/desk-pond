@@ -196,8 +196,12 @@ func _apply_state(new_state: String) -> void:
 				mode_label.text = "准备开始"
 	if pause_button:
 		pause_button.text = "继续" if state == "paused" else "暂停"
+		pause_button.disabled = state == "idle" or state == "completed"
 	if start_button:
 		start_button.disabled = state == "focusing" or state == "break"
+		start_button.text = "休息中" if state == "break" else "甩杆"
+	if reset_button:
+		reset_button.disabled = state == "idle"
 	if focus_spin:
 		focus_spin.editable = state == "idle" or state == "completed"
 	if break_spin:

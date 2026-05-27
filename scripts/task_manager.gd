@@ -173,12 +173,18 @@ func _render_tasks() -> void:
 	if task_list == null:
 		return
 	_clear_task_list(task_list)
-	for task in tasks:
-		task_list.add_child(_make_task_item(task))
+	if tasks.is_empty():
+		task_list.add_child(_make_empty_label("今天还没有种下任务"))
+	else:
+		for task in tasks:
+			task_list.add_child(_make_task_item(task))
 	if full_task_list:
 		_clear_task_list(full_task_list)
-		for task in tasks:
-			full_task_list.add_child(_make_task_item(task))
+		if tasks.is_empty():
+			full_task_list.add_child(_make_empty_label("先写下一个今天想完成的小目标"))
+		else:
+			for task in tasks:
+				full_task_list.add_child(_make_task_item(task))
 	_update_progress()
 
 func _make_task_item(task: Dictionary) -> TaskItem:
@@ -191,6 +197,15 @@ func _make_task_item(task: Dictionary) -> TaskItem:
 func _clear_task_list(list: VBoxContainer) -> void:
 	for child in list.get_children():
 		child.queue_free()
+
+func _make_empty_label(text: String) -> Label:
+	var label := Label.new()
+	label.text = text
+	label.custom_minimum_size = Vector2(0, 42)
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.add_theme_color_override("font_color", Color(0.40, 0.47, 0.38))
+	return label
 
 func _update_progress() -> void:
 	var done_count := 0
