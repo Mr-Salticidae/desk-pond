@@ -238,29 +238,40 @@ func _render_collection() -> void:
 	for fish in fishing_manager.get_fish_data():
 		var fish_id := String(fish.get("id", ""))
 		var count := int(counts.get(fish_id, 0))
-		var row := HBoxContainer.new()
-		row.custom_minimum_size = Vector2(0, 34)
-		row.add_theme_constant_override("separation", 8)
+		var row := VBoxContainer.new()
+		row.custom_minimum_size = Vector2(0, 54)
+		row.add_theme_constant_override("separation", 2)
 		collection_list.add_child(row)
 
+		var top_row := HBoxContainer.new()
+		top_row.add_theme_constant_override("separation", 8)
+		row.add_child(top_row)
+
 		var name_label := Label.new()
-		name_label.text = String(fish.get("name", "神秘小鱼"))
+		name_label.text = String(fish.get("name", "神秘小鱼")) if count > 0 else "未知钓获"
 		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		name_label.add_theme_color_override("font_color", Color(0.13, 0.20, 0.19) if count > 0 else Color(0.43, 0.48, 0.44))
-		row.add_child(name_label)
+		top_row.add_child(name_label)
 
 		var rarity_label := Label.new()
 		rarity_label.text = _rarity_name(String(fish.get("rarity", "common")))
 		rarity_label.custom_minimum_size = Vector2(64, 0)
 		rarity_label.add_theme_color_override("font_color", _rarity_color(String(fish.get("rarity", "common"))))
-		row.add_child(rarity_label)
+		top_row.add_child(rarity_label)
 
 		var count_label := Label.new()
 		count_label.text = "x%d" % count
 		count_label.custom_minimum_size = Vector2(44, 0)
 		count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		count_label.add_theme_color_override("font_color", Color(0.08, 0.35, 0.38) if count > 0 else Color(0.46, 0.50, 0.48))
-		row.add_child(count_label)
+		top_row.add_child(count_label)
+
+		var description_label := Label.new()
+		description_label.text = String(fish.get("description", "")) if count > 0 else "完成专注，看看池塘里会不会遇到它。"
+		description_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		description_label.add_theme_font_size_override("font_size", 12)
+		description_label.add_theme_color_override("font_color", Color(0.30, 0.39, 0.37) if count > 0 else Color(0.48, 0.52, 0.49))
+		row.add_child(description_label)
 
 func _rarity_name(rarity: String) -> String:
 	match rarity:

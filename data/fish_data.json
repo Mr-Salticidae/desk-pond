@@ -3,30 +3,35 @@
     "id": "slacking_crucian",
     "name": "摸鱼鲫鱼",
     "rarity": "common",
+    "description": "最常见的池塘居民，喜欢在日程缝隙里慢慢游。",
     "weight": 50
   },
   {
     "id": "meeting_carp",
     "name": "会议鲤鱼",
     "rarity": "common",
+    "description": "听过很多会议纪要，尾巴一甩就能翻出三条待办。",
     "weight": 30
   },
   {
     "id": "deadline_goldfish",
     "name": "截稿金鱼",
     "rarity": "uncommon",
+    "description": "只在你真的坐下来推进事情时出现，鳞片像提醒事项一样闪。",
     "weight": 15
   },
   {
     "id": "overtime_eel",
     "name": "加班鳗鱼",
     "rarity": "rare",
+    "description": "夜色越深越精神。钓到它时，记得也给自己留点电量。",
     "weight": 4
   },
   {
     "id": "drift_bottle",
     "name": "漂流瓶",
     "rarity": "rare",
+    "description": "里面没有 KPI，只有一句来自未来自己的谢谢。",
     "weight": 1
   }
 ]
