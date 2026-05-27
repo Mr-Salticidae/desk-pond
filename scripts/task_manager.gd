@@ -12,6 +12,11 @@ var task_input: LineEdit
 var task_list: VBoxContainer
 var progress_label: Label
 var feedback_label: Label
+var full_task_window: Window
+var full_task_input: LineEdit
+var full_task_list: VBoxContainer
+var full_progress_label: Label
+var full_feedback_label: Label
 var tasks_completed_today := 0
 
 func _ready() -> void:
@@ -34,6 +39,7 @@ func get_tasks_completed_today() -> int:
 func add_task(title: String) -> void:
 	var clean_title := title.strip_edges()
 	if clean_title == "":
+		_show_feedback("先写下一个任务")
 		return
 	var now := save_manager.current_datetime() if save_manager else ""
 	var task := {
@@ -44,7 +50,10 @@ func add_task(title: String) -> void:
 		"completed_at": null
 	}
 	tasks.append(task)
-	task_input.clear()
+	if task_input:
+		task_input.clear()
+	if full_task_input:
+		full_task_input.clear()
 	_render_tasks()
 	_show_feedback("新的种子埋好了")
 	task_added.emit(task)
@@ -56,6 +65,7 @@ func delete_task(task_id: String) -> void:
 			tasks.remove_at(i)
 			break
 	_render_tasks()
+	_show_feedback("任务已移除")
 	task_deleted.emit(task_id)
 	tasks_changed.emit(get_tasks())
 
@@ -87,11 +97,22 @@ func _build_ui() -> void:
 	root.add_theme_constant_override("separation", 8)
 	add_child(root)
 
+	var header := HBoxContainer.new()
+	header.add_theme_constant_override("separation", 8)
+	root.add_child(header)
+
 	var title := Label.new()
 	title.text = "今日任务苗圃"
 	title.add_theme_font_size_override("font_size", 16)
 	title.add_theme_color_override("font_color", Color(0.17, 0.27, 0.18))
-	root.add_child(title)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(title)
+
+	var expand_button := Button.new()
+	expand_button.text = "展开"
+	expand_button.tooltip_text = "打开完整代办清单"
+	expand_button.pressed.connect(_open_full_task_window)
+	header.add_child(expand_button)
 
 	progress_label = Label.new()
 	progress_label.add_theme_color_override("font_color", Color(0.32, 0.39, 0.30))
@@ -104,12 +125,7 @@ func _build_ui() -> void:
 	task_input = LineEdit.new()
 	task_input.placeholder_text = "写下要种进今天的事"
 	task_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	task_input.add_theme_color_override("font_color", Color(0.07, 0.10, 0.10))
-	task_input.add_theme_color_override("font_placeholder_color", Color(0.30, 0.36, 0.33))
-	task_input.add_theme_color_override("caret_color", Color(0.08, 0.36, 0.43))
-	task_input.add_theme_color_override("selection_color", Color(0.95, 0.72, 0.34, 0.50))
-	task_input.add_theme_stylebox_override("normal", _input_style(Color(1.0, 0.98, 0.87), Color(0.39, 0.46, 0.39), 2))
-	task_input.add_theme_stylebox_override("focus", _input_style(Color(1.0, 0.99, 0.90), Color(0.08, 0.38, 0.44), 3))
+	_apply_input_theme(task_input)
 	task_input.text_submitted.connect(func(text: String): add_task(text))
 	input_row.add_child(task_input)
 
@@ -126,50 +142,140 @@ func _build_ui() -> void:
 	root.add_child(feedback_label)
 
 	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(0, 150)
+	scroll.custom_minimum_size = Vector2(0, 130)
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	root.add_child(scroll)
 
 	task_list = VBoxContainer.new()
 	task_list.add_theme_constant_override("separation", 6)
 	task_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(task_list)
+
+	_build_full_task_window()
 	_update_progress()
 
 func _render_tasks() -> void:
 	if task_list == null:
 		return
-	for child in task_list.get_children():
-		child.queue_free()
+	_clear_task_list(task_list)
 	for task in tasks:
-		var item := TaskItem.new()
-		item.setup(task)
-		item.toggled.connect(toggle_task)
-		item.delete_requested.connect(delete_task)
-		task_list.add_child(item)
+		task_list.add_child(_make_task_item(task))
+	if full_task_list:
+		_clear_task_list(full_task_list)
+		for task in tasks:
+			full_task_list.add_child(_make_task_item(task))
 	_update_progress()
 
+func _make_task_item(task: Dictionary) -> TaskItem:
+	var item := TaskItem.new()
+	item.setup(task)
+	item.toggled.connect(toggle_task)
+	item.delete_requested.connect(delete_task)
+	return item
+
+func _clear_task_list(list: VBoxContainer) -> void:
+	for child in list.get_children():
+		child.queue_free()
+
 func _update_progress() -> void:
-	if progress_label == null:
-		return
 	var open_count := 0
 	for task in tasks:
 		if not bool(task.get("done", false)):
 			open_count += 1
-	progress_label.text = "已完成 %d  /  待办 %d" % [tasks_completed_today, open_count]
+	var text := "已完成 %d  /  待办 %d" % [tasks_completed_today, open_count]
+	if progress_label:
+		progress_label.text = text
+	if full_progress_label:
+		full_progress_label.text = text
 
 func _show_feedback(message: String) -> void:
-	if feedback_label == null:
-		return
-	feedback_label.text = message
-	feedback_label.add_theme_color_override("font_color", Color(0.08, 0.42, 0.25))
+	_set_feedback_text(message, Color(0.08, 0.42, 0.25))
 	var timer := get_tree().create_timer(1.8)
 	timer.timeout.connect(func():
-		if feedback_label:
-			feedback_label.text = "完成任务会让树成长"
-			feedback_label.add_theme_color_override("font_color", Color(0.25, 0.42, 0.25))
+		_set_feedback_text("完成任务会让树成长", Color(0.25, 0.42, 0.25))
 	)
+
+func _set_feedback_text(message: String, color: Color) -> void:
+	if feedback_label:
+		feedback_label.text = message
+		feedback_label.add_theme_color_override("font_color", color)
+	if full_feedback_label:
+		full_feedback_label.text = message
+		full_feedback_label.add_theme_color_override("font_color", color)
+
+func _open_full_task_window() -> void:
+	if full_task_window == null:
+		_build_full_task_window()
+	_render_tasks()
+	full_task_window.popup_centered()
+	if full_task_input:
+		full_task_input.grab_focus()
+
+func _build_full_task_window() -> void:
+	if full_task_window != null:
+		return
+	full_task_window = Window.new()
+	full_task_window.title = "完整代办清单"
+	full_task_window.size = Vector2i(520, 520)
+	full_task_window.visible = false
+	full_task_window.close_requested.connect(full_task_window.hide)
+	add_child(full_task_window)
+
+	var panel := PanelContainer.new()
+	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	panel.add_theme_stylebox_override("panel", _panel_style(Color(0.91, 0.93, 0.80), Color(0.26, 0.38, 0.29)))
+	full_task_window.add_child(panel)
+
+	var root := VBoxContainer.new()
+	root.add_theme_constant_override("separation", 10)
+	panel.add_child(root)
+
+	var title := Label.new()
+	title.text = "完整代办清单"
+	title.add_theme_font_size_override("font_size", 20)
+	title.add_theme_color_override("font_color", Color(0.12, 0.24, 0.15))
+	root.add_child(title)
+
+	full_progress_label = Label.new()
+	full_progress_label.add_theme_color_override("font_color", Color(0.32, 0.39, 0.30))
+	root.add_child(full_progress_label)
+
+	var input_row := HBoxContainer.new()
+	input_row.add_theme_constant_override("separation", 6)
+	root.add_child(input_row)
+
+	full_task_input = LineEdit.new()
+	full_task_input.placeholder_text = "继续写下今天要做的事"
+	full_task_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_apply_input_theme(full_task_input)
+	full_task_input.text_submitted.connect(func(text: String): add_task(text))
+	input_row.add_child(full_task_input)
+
+	var add_button := Button.new()
+	add_button.text = "播种"
+	add_button.tooltip_text = "添加任务"
+	add_button.pressed.connect(func(): add_task(full_task_input.text))
+	input_row.add_child(add_button)
+
+	full_feedback_label = Label.new()
+	full_feedback_label.text = "完成任务会让树成长"
+	full_feedback_label.add_theme_color_override("font_color", Color(0.25, 0.42, 0.25))
+	full_feedback_label.add_theme_font_size_override("font_size", 13)
+	root.add_child(full_feedback_label)
+
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(0, 350)
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	root.add_child(scroll)
+
+	full_task_list = VBoxContainer.new()
+	full_task_list.add_theme_constant_override("separation", 6)
+	full_task_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(full_task_list)
 
 func _panel_style(fill: Color, border: Color) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
@@ -206,3 +312,11 @@ func _input_style(fill: Color, border: Color, border_width: int) -> StyleBoxFlat
 	style.content_margin_top = 6
 	style.content_margin_bottom = 6
 	return style
+
+func _apply_input_theme(line_edit: LineEdit) -> void:
+	line_edit.add_theme_color_override("font_color", Color(0.07, 0.10, 0.10))
+	line_edit.add_theme_color_override("font_placeholder_color", Color(0.30, 0.36, 0.33))
+	line_edit.add_theme_color_override("caret_color", Color(0.08, 0.36, 0.43))
+	line_edit.add_theme_color_override("selection_color", Color(0.95, 0.72, 0.34, 0.50))
+	line_edit.add_theme_stylebox_override("normal", _input_style(Color(1.0, 0.98, 0.87), Color(0.39, 0.46, 0.39), 2))
+	line_edit.add_theme_stylebox_override("focus", _input_style(Color(1.0, 0.99, 0.90), Color(0.08, 0.38, 0.44), 3))

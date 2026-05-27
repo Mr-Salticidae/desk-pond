@@ -21,9 +21,9 @@ config/features=PackedStringArray("4.6")
 [display]
 
 window/size/viewport_width=640
-window/size/viewport_height=460
+window/size/viewport_height=520
 window/size/window_width_override=640
-window/size/window_height_override=460
+window/size/window_height_override=520
 window/stretch/mode="canvas_items"
 
 [rendering]

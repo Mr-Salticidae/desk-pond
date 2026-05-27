@@ -4,8 +4,12 @@ class_name PomodoroTimer
 signal focus_completed
 signal timer_tick(seconds_left: int)
 signal state_changed(state: String)
+signal settings_changed(settings: Dictionary)
 
-const DEBUG_FAST_TIMER = true
+const MIN_FOCUS_MINUTES = 1
+const MAX_FOCUS_MINUTES = 180
+const MIN_BREAK_MINUTES = 1
+const MAX_BREAK_MINUTES = 60
 
 var state := "idle"
 var focus_seconds := 25 * 60
@@ -13,6 +17,8 @@ var break_seconds := 5 * 60
 var seconds_left := focus_seconds
 var mode_label: Label
 var time_label: Label
+var focus_spin: SpinBox
+var break_spin: SpinBox
 var start_button: Button
 var pause_button: Button
 var reset_button: Button
@@ -23,15 +29,14 @@ func _ready() -> void:
 	_apply_state("idle")
 
 func setup(settings: Dictionary) -> void:
-	if DEBUG_FAST_TIMER:
-		focus_seconds = 10
-		break_seconds = 5
-	else:
-		focus_seconds = int(settings.get("focus_minutes", 25)) * 60
-		break_seconds = int(settings.get("break_minutes", 5)) * 60
+	var focus_minutes: int = clamp(int(settings.get("focus_minutes", 25)), MIN_FOCUS_MINUTES, MAX_FOCUS_MINUTES)
+	var break_minutes: int = clamp(int(settings.get("break_minutes", 5)), MIN_BREAK_MINUTES, MAX_BREAK_MINUTES)
+	focus_seconds = focus_minutes * 60
+	break_seconds = break_minutes * 60
 	seconds_left = focus_seconds
 	if time_label == null:
 		_build_ui()
+	_set_spin_values(focus_minutes, break_minutes)
 	_update_time_label()
 
 func start_focus() -> void:
@@ -76,7 +81,7 @@ func _build_ui() -> void:
 	add_theme_stylebox_override("panel", _panel_style(Color(0.92, 0.88, 0.72), Color(0.37, 0.31, 0.25)))
 
 	var root := VBoxContainer.new()
-	root.add_theme_constant_override("separation", 8)
+	root.add_theme_constant_override("separation", 6)
 	add_child(root)
 
 	var title := Label.new()
@@ -89,8 +94,44 @@ func _build_ui() -> void:
 	mode_label.add_theme_color_override("font_color", Color(0.42, 0.31, 0.23))
 	root.add_child(mode_label)
 
+	var settings_grid := GridContainer.new()
+	settings_grid.columns = 2
+	settings_grid.add_theme_constant_override("h_separation", 8)
+	settings_grid.add_theme_constant_override("v_separation", 4)
+	root.add_child(settings_grid)
+
+	var focus_label := Label.new()
+	focus_label.text = "专注"
+	focus_label.add_theme_color_override("font_color", Color(0.35, 0.27, 0.20))
+	settings_grid.add_child(focus_label)
+
+	focus_spin = SpinBox.new()
+	focus_spin.min_value = MIN_FOCUS_MINUTES
+	focus_spin.max_value = MAX_FOCUS_MINUTES
+	focus_spin.step = 1
+	focus_spin.value = 25
+	focus_spin.suffix = " 分钟"
+	focus_spin.custom_minimum_size = Vector2(102, 0)
+	focus_spin.value_changed.connect(func(_value: float): _on_duration_changed())
+	settings_grid.add_child(focus_spin)
+
+	var break_label := Label.new()
+	break_label.text = "休息"
+	break_label.add_theme_color_override("font_color", Color(0.35, 0.27, 0.20))
+	settings_grid.add_child(break_label)
+
+	break_spin = SpinBox.new()
+	break_spin.min_value = MIN_BREAK_MINUTES
+	break_spin.max_value = MAX_BREAK_MINUTES
+	break_spin.step = 1
+	break_spin.value = 5
+	break_spin.suffix = " 分钟"
+	break_spin.custom_minimum_size = Vector2(102, 0)
+	break_spin.value_changed.connect(func(_value: float): _on_duration_changed())
+	settings_grid.add_child(break_spin)
+
 	time_label = Label.new()
-	time_label.add_theme_font_size_override("font_size", 34)
+	time_label.add_theme_font_size_override("font_size", 32)
 	time_label.add_theme_color_override("font_color", Color(0.14, 0.23, 0.24))
 	time_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	root.add_child(time_label)
@@ -144,6 +185,10 @@ func _apply_state(new_state: String) -> void:
 		pause_button.text = "继续" if state == "paused" else "暂停"
 	if start_button:
 		start_button.disabled = state == "focusing"
+	if focus_spin:
+		focus_spin.editable = state == "idle" or state == "completed"
+	if break_spin:
+		break_spin.editable = state == "idle" or state == "completed"
 	state_changed.emit(state)
 
 func _update_time_label() -> void:
@@ -151,6 +196,27 @@ func _update_time_label() -> void:
 		var minutes := int(seconds_left / 60)
 		var seconds := seconds_left % 60
 		time_label.text = "%02d:%02d" % [minutes, seconds]
+
+func _set_spin_values(focus_minutes: int, break_minutes: int) -> void:
+	if focus_spin:
+		focus_spin.set_value_no_signal(focus_minutes)
+	if break_spin:
+		break_spin.set_value_no_signal(break_minutes)
+
+func _on_duration_changed() -> void:
+	if focus_spin == null or break_spin == null:
+		return
+	var focus_minutes: int = clamp(int(focus_spin.value), MIN_FOCUS_MINUTES, MAX_FOCUS_MINUTES)
+	var break_minutes: int = clamp(int(break_spin.value), MIN_BREAK_MINUTES, MAX_BREAK_MINUTES)
+	focus_seconds = focus_minutes * 60
+	break_seconds = break_minutes * 60
+	if state == "idle" or state == "completed":
+		seconds_left = focus_seconds
+		_update_time_label()
+	settings_changed.emit({
+		"focus_minutes": focus_minutes,
+		"break_minutes": break_minutes
+	})
 
 func _panel_style(fill: Color, border: Color) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()

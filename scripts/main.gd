@@ -21,7 +21,7 @@ var stats_label: Label
 var always_on_top_button: CheckButton
 
 func _ready() -> void:
-	get_window().min_size = Vector2i(640, 460)
+	get_window().min_size = Vector2i(640, 520)
 	save_manager = SaveManagerScript.new()
 	fishing_manager = FishingManagerScript.new()
 	tree_manager = TreeManagerScript.new()
@@ -77,13 +77,13 @@ func _build_ui() -> void:
 	top_bar.add_child(always_on_top_button)
 
 	pixel_world = PixelWorldScene.instantiate()
-	pixel_world.custom_minimum_size = Vector2(640, 210)
+	pixel_world.custom_minimum_size = Vector2(640, 200)
 	pixel_world.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	pixel_world.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	root.add_child(pixel_world)
 
 	var bottom_margin := MarginContainer.new()
-	bottom_margin.custom_minimum_size = Vector2(0, 220)
+	bottom_margin.custom_minimum_size = Vector2(0, 280)
 	bottom_margin.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	bottom_margin.add_theme_constant_override("margin_left", 8)
 	bottom_margin.add_theme_constant_override("margin_right", 8)
@@ -96,7 +96,7 @@ func _build_ui() -> void:
 	bottom_margin.add_child(bottom)
 
 	pomodoro_panel = PomodoroPanelScene.instantiate()
-	pomodoro_panel.custom_minimum_size = Vector2(220, 0)
+	pomodoro_panel.custom_minimum_size = Vector2(230, 0)
 	pomodoro_panel.size_flags_horizontal = Control.SIZE_FILL
 	bottom.add_child(pomodoro_panel)
 
@@ -118,6 +118,7 @@ func _setup_modules() -> void:
 
 	pomodoro_panel.focus_completed.connect(_on_focus_completed)
 	pomodoro_panel.state_changed.connect(_on_timer_state_changed)
+	pomodoro_panel.settings_changed.connect(_on_timer_settings_changed)
 	pixel_world.cast_requested.connect(_on_cast_requested)
 	task_panel.tasks_changed.connect(_on_tasks_changed)
 	task_panel.task_completed.connect(_on_task_completed)
@@ -157,6 +158,11 @@ func _on_tree_growth_changed(growth_points: int, tree_stage: int) -> void:
 func _on_timer_state_changed(state: String) -> void:
 	if pixel_world:
 		pixel_world.set_fishing_active(state == "focusing")
+
+func _on_timer_settings_changed(settings: Dictionary) -> void:
+	save_data["settings"]["focus_minutes"] = int(settings.get("focus_minutes", save_data["settings"].get("focus_minutes", 25)))
+	save_data["settings"]["break_minutes"] = int(settings.get("break_minutes", save_data["settings"].get("break_minutes", 5)))
+	_save_now()
 
 func _on_cast_requested() -> void:
 	if pomodoro_panel:
