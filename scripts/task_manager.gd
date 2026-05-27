@@ -69,6 +69,19 @@ func delete_task(task_id: String) -> void:
 	task_deleted.emit(task_id)
 	tasks_changed.emit(get_tasks())
 
+func clear_completed_tasks() -> void:
+	var remaining: Array = []
+	var removed_count := 0
+	for task in tasks:
+		if bool(task.get("done", false)):
+			removed_count += 1
+		else:
+			remaining.append(task)
+	tasks = remaining
+	_render_tasks()
+	_show_feedback("已清理 %d 个完成任务" % removed_count if removed_count > 0 else "没有需要清理的完成任务")
+	tasks_changed.emit(get_tasks())
+
 func toggle_task(task_id: String, done: bool) -> void:
 	for i in range(tasks.size()):
 		var task: Dictionary = tasks[i]
@@ -180,11 +193,14 @@ func _clear_task_list(list: VBoxContainer) -> void:
 		child.queue_free()
 
 func _update_progress() -> void:
+	var done_count := 0
 	var open_count := 0
 	for task in tasks:
-		if not bool(task.get("done", false)):
+		if bool(task.get("done", false)):
+			done_count += 1
+		else:
 			open_count += 1
-	var text := "已完成 %d  /  待办 %d" % [tasks_completed_today, open_count]
+	var text := "已完成 %d  /  待办 %d" % [done_count, open_count]
 	if progress_label:
 		progress_label.text = text
 	if full_progress_label:
@@ -236,7 +252,18 @@ func _build_full_task_window() -> void:
 	title.text = "完整代办清单"
 	title.add_theme_font_size_override("font_size", 20)
 	title.add_theme_color_override("font_color", Color(0.12, 0.24, 0.15))
-	root.add_child(title)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	var header := HBoxContainer.new()
+	header.add_theme_constant_override("separation", 8)
+	root.add_child(header)
+	header.add_child(title)
+
+	var clear_button := Button.new()
+	clear_button.text = "清理完成"
+	clear_button.tooltip_text = "移除已经完成的任务"
+	clear_button.pressed.connect(clear_completed_tasks)
+	header.add_child(clear_button)
 
 	full_progress_label = Label.new()
 	full_progress_label.add_theme_color_override("font_color", Color(0.32, 0.39, 0.30))

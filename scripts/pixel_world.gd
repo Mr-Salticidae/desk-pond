@@ -48,9 +48,20 @@ func _gui_input(event: InputEvent) -> void:
 			queue_redraw()
 
 func set_fishing_active(active: bool) -> void:
-	fishing_active = active
+	set_activity_state("focusing" if active else "idle")
+
+func set_activity_state(timer_state: String) -> void:
+	fishing_active = timer_state == "focusing"
 	if status_label:
-		status_label.text = "已甩杆，专注中" if active else "点击池塘甩杆"
+		match timer_state:
+			"focusing":
+				status_label.text = "已甩杆，专注中"
+			"break":
+				status_label.text = "收竿休息中"
+			"paused":
+				status_label.text = "时间暂停中"
+			_:
+				status_label.text = "点击池塘甩杆"
 	queue_redraw()
 
 func update_tree_visual(stage: int, growth_points: int = 0) -> void:

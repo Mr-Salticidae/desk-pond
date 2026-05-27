@@ -19,6 +19,8 @@ var task_panel: TaskManager
 var reward_popup: RewardPopup
 var stats_label: Label
 var always_on_top_button: CheckButton
+var collection_window: Window
+var collection_list: VBoxContainer
 
 func _ready() -> void:
 	get_window().min_size = Vector2i(640, 520)
@@ -70,6 +72,12 @@ func _build_ui() -> void:
 	stats_label.add_theme_color_override("font_color", Color(0.86, 0.91, 0.78))
 	top_bar.add_child(stats_label)
 
+	var collection_button := Button.new()
+	collection_button.text = "图鉴"
+	collection_button.tooltip_text = "查看钓获收藏"
+	collection_button.pressed.connect(_open_collection_window)
+	top_bar.add_child(collection_button)
+
 	always_on_top_button = CheckButton.new()
 	always_on_top_button.text = "置顶"
 	always_on_top_button.button_pressed = bool(save_data["settings"].get("always_on_top", false))
@@ -108,6 +116,7 @@ func _build_ui() -> void:
 
 	reward_popup = RewardPopupScene.instantiate()
 	add_child(reward_popup)
+	_build_collection_window()
 
 func _setup_modules() -> void:
 	fishing_manager.set_fish_count(save_data.get("fish_count", {}))
@@ -128,6 +137,7 @@ func _setup_modules() -> void:
 
 	_on_tree_growth_changed(tree_manager.growth_points, tree_manager.tree_stage)
 	_update_stats()
+	_render_collection()
 
 func _on_focus_completed() -> void:
 	save_data["pomodoro_completed"] = int(save_data.get("pomodoro_completed", 0)) + 1
@@ -135,6 +145,7 @@ func _on_focus_completed() -> void:
 	save_data["fish_count"] = fishing_manager.get_fish_count()
 	pixel_world.play_focus_feedback()
 	reward_popup.show_reward(fish)
+	_render_collection()
 	_save_now()
 
 func _on_task_completed(_task: Dictionary) -> void:
@@ -157,7 +168,7 @@ func _on_tree_growth_changed(growth_points: int, tree_stage: int) -> void:
 
 func _on_timer_state_changed(state: String) -> void:
 	if pixel_world:
-		pixel_world.set_fishing_active(state == "focusing")
+		pixel_world.set_activity_state(state)
 
 func _on_timer_settings_changed(settings: Dictionary) -> void:
 	save_data["settings"]["focus_minutes"] = int(settings.get("focus_minutes", save_data["settings"].get("focus_minutes", 25)))
@@ -175,6 +186,99 @@ func _on_always_on_top_toggled(enabled: bool) -> void:
 
 func _apply_window_settings() -> void:
 	get_window().always_on_top = bool(save_data["settings"].get("always_on_top", false))
+
+func _open_collection_window() -> void:
+	if collection_window == null:
+		_build_collection_window()
+	_render_collection()
+	collection_window.popup_centered()
+
+func _build_collection_window() -> void:
+	if collection_window != null:
+		return
+	collection_window = Window.new()
+	collection_window.title = "钓获图鉴"
+	collection_window.size = Vector2i(420, 360)
+	collection_window.visible = false
+	collection_window.close_requested.connect(collection_window.hide)
+	add_child(collection_window)
+
+	var panel := PanelContainer.new()
+	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	panel.add_theme_stylebox_override("panel", _make_stylebox(Color(0.90, 0.93, 0.83), Color(0.24, 0.39, 0.37), 2, 6))
+	collection_window.add_child(panel)
+
+	var root := VBoxContainer.new()
+	root.add_theme_constant_override("separation", 10)
+	panel.add_child(root)
+
+	var title := Label.new()
+	title.text = "钓获图鉴"
+	title.add_theme_font_size_override("font_size", 20)
+	title.add_theme_color_override("font_color", Color(0.10, 0.25, 0.25))
+	root.add_child(title)
+
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	root.add_child(scroll)
+
+	collection_list = VBoxContainer.new()
+	collection_list.add_theme_constant_override("separation", 6)
+	collection_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(collection_list)
+
+func _render_collection() -> void:
+	if collection_list == null or fishing_manager == null:
+		return
+	for child in collection_list.get_children():
+		child.queue_free()
+	var counts := fishing_manager.get_fish_count()
+	for fish in fishing_manager.get_fish_data():
+		var fish_id := String(fish.get("id", ""))
+		var count := int(counts.get(fish_id, 0))
+		var row := HBoxContainer.new()
+		row.custom_minimum_size = Vector2(0, 34)
+		row.add_theme_constant_override("separation", 8)
+		collection_list.add_child(row)
+
+		var name_label := Label.new()
+		name_label.text = String(fish.get("name", "神秘小鱼"))
+		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		name_label.add_theme_color_override("font_color", Color(0.13, 0.20, 0.19) if count > 0 else Color(0.43, 0.48, 0.44))
+		row.add_child(name_label)
+
+		var rarity_label := Label.new()
+		rarity_label.text = _rarity_name(String(fish.get("rarity", "common")))
+		rarity_label.custom_minimum_size = Vector2(64, 0)
+		rarity_label.add_theme_color_override("font_color", _rarity_color(String(fish.get("rarity", "common"))))
+		row.add_child(rarity_label)
+
+		var count_label := Label.new()
+		count_label.text = "x%d" % count
+		count_label.custom_minimum_size = Vector2(44, 0)
+		count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		count_label.add_theme_color_override("font_color", Color(0.08, 0.35, 0.38) if count > 0 else Color(0.46, 0.50, 0.48))
+		row.add_child(count_label)
+
+func _rarity_name(rarity: String) -> String:
+	match rarity:
+		"uncommon":
+			return "少见"
+		"rare":
+			return "稀有"
+		_:
+			return "常见"
+
+func _rarity_color(rarity: String) -> Color:
+	match rarity:
+		"uncommon":
+			return Color(0.22, 0.45, 0.21)
+		"rare":
+			return Color(0.55, 0.27, 0.63)
+		_:
+			return Color(0.35, 0.36, 0.30)
 
 func _apply_theme() -> void:
 	var game_theme := Theme.new()

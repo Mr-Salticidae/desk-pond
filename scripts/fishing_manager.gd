@@ -48,3 +48,6 @@ func add_fish(fish_id: String) -> void:
 
 func get_fish_count() -> Dictionary:
 	return fish_count.duplicate(true)
+
+func get_fish_data() -> Array:
+	return fish_data.duplicate(true)

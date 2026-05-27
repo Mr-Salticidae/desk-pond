@@ -2,6 +2,7 @@ extends PanelContainer
 class_name PomodoroTimer
 
 signal focus_completed
+signal break_completed
 signal timer_tick(seconds_left: int)
 signal state_changed(state: String)
 signal settings_changed(settings: Dictionary)
@@ -12,6 +13,7 @@ const MIN_BREAK_MINUTES = 1
 const MAX_BREAK_MINUTES = 60
 
 var state := "idle"
+var paused_from_state := "idle"
 var focus_seconds := 25 * 60
 var break_seconds := 5 * 60
 var seconds_left := focus_seconds
@@ -40,7 +42,7 @@ func setup(settings: Dictionary) -> void:
 	_update_time_label()
 
 func start_focus() -> void:
-	if state == "focusing":
+	if state == "focusing" or state == "break":
 		return
 	if state == "idle" or state == "completed":
 		seconds_left = focus_seconds
@@ -48,11 +50,12 @@ func start_focus() -> void:
 	countdown_timer.start()
 
 func pause_or_resume() -> void:
-	if state == "focusing":
+	if state == "focusing" or state == "break":
+		paused_from_state = state
 		countdown_timer.stop()
 		_apply_state("paused")
 	elif state == "paused":
-		_apply_state("focusing")
+		_apply_state(paused_from_state)
 		countdown_timer.start()
 
 func reset_timer() -> void:
@@ -62,18 +65,28 @@ func reset_timer() -> void:
 	_update_time_label()
 
 func _on_timeout() -> void:
-	if state != "focusing":
+	if state != "focusing" and state != "break":
 		return
 	seconds_left -= 1
 	timer_tick.emit(seconds_left)
 	_update_time_label()
 	if seconds_left <= 0:
 		countdown_timer.stop()
-		_apply_state("completed")
-		focus_completed.emit()
-		seconds_left = focus_seconds
-		_apply_state("idle")
-		_update_time_label()
+		if state == "focusing":
+			_apply_state("completed")
+			focus_completed.emit()
+			_start_break()
+		else:
+			break_completed.emit()
+			seconds_left = focus_seconds
+			_apply_state("idle")
+			_update_time_label()
+
+func _start_break() -> void:
+	seconds_left = break_seconds
+	_apply_state("break")
+	_update_time_label()
+	countdown_timer.start()
 
 func _build_ui() -> void:
 	if countdown_timer != null:
@@ -184,7 +197,7 @@ func _apply_state(new_state: String) -> void:
 	if pause_button:
 		pause_button.text = "继续" if state == "paused" else "暂停"
 	if start_button:
-		start_button.disabled = state == "focusing"
+		start_button.disabled = state == "focusing" or state == "break"
 	if focus_spin:
 		focus_spin.editable = state == "idle" or state == "completed"
 	if break_spin:
