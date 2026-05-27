@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://deskpondtask001"]
+
+[ext_resource type="Script" path="res://scripts/task_manager.gd" id="1_task"]
+
+[node name="TaskPanel" type="PanelContainer"]
+script = ExtResource("1_task")

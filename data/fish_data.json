@@ -1,0 +1,32 @@
+[
+  {
+    "id": "slacking_crucian",
+    "name": "摸鱼鲫鱼",
+    "rarity": "common",
+    "weight": 50
+  },
+  {
+    "id": "meeting_carp",
+    "name": "会议鲤鱼",
+    "rarity": "common",
+    "weight": 30
+  },
+  {
+    "id": "deadline_goldfish",
+    "name": "截稿金鱼",
+    "rarity": "uncommon",
+    "weight": 15
+  },
+  {
+    "id": "overtime_eel",
+    "name": "加班鳗鱼",
+    "rarity": "rare",
+    "weight": 4
+  },
+  {
+    "id": "drift_bottle",
+    "name": "漂流瓶",
+    "rarity": "rare",
+    "weight": 1
+  }
+]

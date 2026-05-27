@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3 uid="uid://deskpondreward01"]
+
+[ext_resource type="Script" path="res://scripts/reward_popup.gd" id="1_reward"]
+
+[node name="RewardPopup" type="Window"]
+title = "专注完成"
+size = Vector2i(320, 180)
+visible = false
+exclusive = true
+script = ExtResource("1_reward")

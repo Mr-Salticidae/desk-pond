@@ -1,0 +1,25 @@
+# Godot 4 editor cache and imported resources
+.godot/
+.import/
+*.import
+
+# Exported builds
+exports/
+builds/
+*.exe
+*.app
+*.x86_64
+*.arm64
+*.pck
+
+# Logs and temp files
+*.log
+*.tmp
+*.temp
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
