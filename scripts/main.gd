@@ -21,6 +21,7 @@ var stats_label: Label
 var always_on_top_button: CheckButton
 var collection_window: Window
 var collection_list: VBoxContainer
+var help_window: Window
 
 func _ready() -> void:
 	get_window().min_size = Vector2i(640, 520)
@@ -78,6 +79,12 @@ func _build_ui() -> void:
 	collection_button.pressed.connect(_open_collection_window)
 	top_bar.add_child(collection_button)
 
+	var help_button := Button.new()
+	help_button.text = "?"
+	help_button.tooltip_text = "查看玩法说明"
+	help_button.pressed.connect(_open_help_window)
+	top_bar.add_child(help_button)
+
 	always_on_top_button = CheckButton.new()
 	always_on_top_button.text = "置顶"
 	always_on_top_button.button_pressed = bool(save_data["settings"].get("always_on_top", false))
@@ -117,6 +124,7 @@ func _build_ui() -> void:
 	reward_popup = RewardPopupScene.instantiate()
 	add_child(reward_popup)
 	_build_collection_window()
+	_build_help_window()
 
 func _setup_modules() -> void:
 	fishing_manager.set_fish_count(save_data.get("fish_count", {}))
@@ -228,6 +236,51 @@ func _build_collection_window() -> void:
 	collection_list.add_theme_constant_override("separation", 6)
 	collection_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(collection_list)
+
+func _open_help_window() -> void:
+	if help_window == null:
+		_build_help_window()
+	help_window.popup_centered()
+
+func _build_help_window() -> void:
+	if help_window != null:
+		return
+	help_window = Window.new()
+	help_window.title = "玩法说明"
+	help_window.size = Vector2i(420, 360)
+	help_window.visible = false
+	help_window.close_requested.connect(help_window.hide)
+	add_child(help_window)
+
+	var panel := PanelContainer.new()
+	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	panel.add_theme_stylebox_override("panel", _make_stylebox(Color(0.93, 0.91, 0.78), Color(0.30, 0.37, 0.31), 2, 6))
+	help_window.add_child(panel)
+
+	var root := VBoxContainer.new()
+	root.add_theme_constant_override("separation", 10)
+	panel.add_child(root)
+
+	var title := Label.new()
+	title.text = "工位池塘怎么玩"
+	title.add_theme_font_size_override("font_size", 20)
+	title.add_theme_color_override("font_color", Color(0.12, 0.22, 0.20))
+	root.add_child(title)
+
+	var tips := [
+		"点击池塘水面，或按“甩杆”，开始一次专注。",
+		"专注和休息时间可以在左侧直接调整，开始后会锁定。",
+		"专注完成会自动钓获奖励，并进入休息倒计时。",
+		"写下今日任务，完成任务会让右侧的小树成长。",
+		"任务多时点“展开”，打开完整代办清单。",
+		"点“图鉴”查看钓到过的鱼和收集进度。"
+	]
+	for tip in tips:
+		var label := Label.new()
+		label.text = "· %s" % tip
+		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		label.add_theme_color_override("font_color", Color(0.20, 0.29, 0.27))
+		root.add_child(label)
 
 func _render_collection() -> void:
 	if collection_list == null or fishing_manager == null:
