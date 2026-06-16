@@ -17,7 +17,7 @@ var pomodoro_panel: PomodoroTimer
 var task_panel: TaskManager
 var reward_popup: RewardPopup
 var stats_label: Label
-var always_on_top_button: CheckButton
+var always_on_top_button: Button
 var collection_window: Window
 var collection_list: VBoxContainer
 var help_window: Window
@@ -103,11 +103,13 @@ func _build_ui() -> void:
 	help_button.pressed.connect(_open_help_window)
 	top_bar.add_child(help_button)
 
-	always_on_top_button = CheckButton.new()
+	always_on_top_button = Button.new()
 	always_on_top_button.text = "置顶"
+	always_on_top_button.toggle_mode = true
 	always_on_top_button.focus_mode = Control.FOCUS_NONE
-	always_on_top_button.add_theme_color_override("font_color", UITheme.INK_ON_CHROME)
-	always_on_top_button.button_pressed = bool(save_data["settings"].get("always_on_top", false))
+	always_on_top_button.tooltip_text = "窗口置顶"
+	UITheme.style_chrome(always_on_top_button)
+	always_on_top_button.set_pressed_no_signal(bool(save_data["settings"].get("always_on_top", false)))
 	always_on_top_button.toggled.connect(_on_always_on_top_toggled)
 	top_bar.add_child(always_on_top_button)
 

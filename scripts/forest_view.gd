@@ -33,7 +33,7 @@ var total_points := 0
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	title_label = _make_label(18, Color(0.15, 0.27, 0.18), true)
-	title_label.text = "你的林子"
+	title_label.text = "你的森林"
 	title_label.position = Vector2(18, 14)
 	count_label = _make_label(13, Color(0.26, 0.39, 0.27), false)
 	count_label.position = Vector2(18, 40)

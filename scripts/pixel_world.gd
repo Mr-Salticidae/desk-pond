@@ -14,8 +14,6 @@ const FISH_SHADOW := Color(0.10, 0.34, 0.43, 0.40)
 const HOVER_TINT := Color(1.0, 0.96, 0.62, 0.16)
 
 var status_label: Label
-var tree_label: Label
-var pond_label: Label
 var fishing_active := false
 var cast_hovered := false
 var mouse_over_pond := false
@@ -77,21 +75,10 @@ func set_activity_state(timer_state: String) -> void:
 func update_tree_visual(stage: int, forest_count: int = 0) -> void:
 	tree_stage = int(clamp(stage, 0, 3))
 	self.growth_points = forest_count
-	if tree_label == null:
-		return
-	if forest_count > 0:
-		tree_label.text = "林 · %d 棵" % forest_count
-	else:
-		var names := ["种子", "小树苗", "小树", "大树"]
-		tree_label.text = names[tree_stage]
 	queue_redraw()
 
 func play_focus_feedback() -> void:
-	if pond_label:
-		reward_flash = 1.0
-		pond_label.text = "水面闪光"
-		var timer := get_tree().create_timer(1.2)
-		timer.timeout.connect(func(): pond_label.text = "Desk Pond")
+	reward_flash = 1.0
 	queue_redraw()
 
 func _build_ui() -> void:
@@ -102,31 +89,11 @@ func _build_ui() -> void:
 	status_label.add_theme_color_override("font_color", Color(0.15, 0.20, 0.24))
 	add_child(status_label)
 
-	pond_label = Label.new()
-	pond_label.text = "Desk Pond"
-	pond_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	pond_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	pond_label.position = Vector2(236, 18)
-	pond_label.size = Vector2(168, 24)
-	pond_label.add_theme_font_size_override("font_size", 18)
-	pond_label.add_theme_color_override("font_color", Color(0.12, 0.26, 0.32))
-	add_child(pond_label)
-
-	tree_label = Label.new()
-	tree_label.position = Vector2(500, 18)
-	tree_label.add_theme_font_size_override("font_size", 14)
-	tree_label.add_theme_color_override("font_color", Color(0.17, 0.29, 0.20))
-	add_child(tree_label)
-	update_tree_visual(0, 0)
 	_layout_labels()
 
 func _layout_labels() -> void:
 	if status_label:
 		status_label.position = Vector2(18, 16)
-	if pond_label:
-		pond_label.position = Vector2(max(size.x * 0.5 - 84.0, 138.0), 18)
-	if tree_label:
-		tree_label.position = Vector2(max(size.x - 142.0, 338.0), 18)
 
 func _on_anim_tick() -> void:
 	water_frame = fmod(water_frame + 1.0, LOOP)
