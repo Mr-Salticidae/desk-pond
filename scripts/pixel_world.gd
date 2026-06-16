@@ -3,6 +3,16 @@ class_name PixelWorld
 
 signal cast_requested
 
+# 一次完整动画循环的帧数（anim_timer 每 0.12s 一帧），所有周期动画都以它为基准做到无缝循环。
+const LOOP := 360.0
+const CLOUD_COLOR := Color(0.93, 0.95, 0.92, 0.95)
+const POND_RIM := Color(0.17, 0.42, 0.52)
+const POND_BODY := Color(0.24, 0.58, 0.70)
+const POND_SHEEN := Color(0.36, 0.72, 0.80)
+const RIPPLE_COLOR := Color(0.82, 0.94, 0.93, 0.70)
+const FISH_SHADOW := Color(0.10, 0.34, 0.43, 0.40)
+const HOVER_TINT := Color(1.0, 0.96, 0.62, 0.16)
+
 var status_label: Label
 var tree_label: Label
 var pond_label: Label
@@ -116,7 +126,7 @@ func _layout_labels() -> void:
 		tree_label.position = Vector2(max(size.x - 142.0, 338.0), 18)
 
 func _on_anim_tick() -> void:
-	water_frame = fmod(water_frame + 1.0, 1000.0)
+	water_frame = fmod(water_frame + 1.0, LOOP)
 	if reward_flash > 0.0:
 		reward_flash = max(reward_flash - 0.1, 0.0)
 	queue_redraw()
@@ -133,33 +143,50 @@ func _draw() -> void:
 	_draw_fisher(w, h)
 	_draw_tree(w, h)
 	_draw_grass(w, h)
-	_draw_cast_hint(w, h)
 
 func _draw_clouds(w: float) -> void:
-	var drift := fmod(water_frame * 2.0, 48.0)
-	_pixel_rect(Vector2(54 + drift, 38), Vector2(46, 10), Color(0.92, 0.95, 0.91))
-	_pixel_rect(Vector2(82 + drift, 28), Vector2(34, 12), Color(0.92, 0.95, 0.91))
-	_pixel_rect(Vector2(w - 148 - drift, 42), Vector2(60, 10), Color(0.91, 0.94, 0.88))
+	# 云层向右匀速漂移，按 span 取模并画两份（相隔一个 span），
+	# 当一朵从右侧滑出时左侧无缝接上，循环不跳变。
+	var span := w + 140.0
+	var shift := fmod(water_frame / LOOP * span, span)
+	var clouds := [
+		[Vector2(70.0, 36.0), Vector2(46.0, 10.0)],
+		[Vector2(150.0, 26.0), Vector2(34.0, 12.0)],
+		[Vector2(360.0, 44.0), Vector2(58.0, 10.0)],
+		[Vector2(520.0, 30.0), Vector2(40.0, 10.0)],
+	]
+	for c in clouds:
+		var pos: Vector2 = c[0]
+		var csize: Vector2 = c[1]
+		var x := fmod(pos.x + shift, span)
+		_pixel_rect(Vector2(x, pos.y), csize, CLOUD_COLOR)
+		_pixel_rect(Vector2(x - span, pos.y), csize, CLOUD_COLOR)
 
 func _draw_pond(w: float, h: float) -> void:
 	var pond := _get_pond_rect()
-	draw_rect(Rect2(pond.position + Vector2(12, -8), pond.size - Vector2(24, -16)), Color(0.19, 0.47, 0.58))
-	draw_rect(Rect2(pond.position + Vector2(0, 10), pond.size), Color(0.23, 0.58, 0.70))
-	draw_rect(Rect2(pond.position + Vector2(18, 24), pond.size - Vector2(36, 42)), Color(0.37, 0.74, 0.80))
+	var phase := water_frame / LOOP * TAU
+	# 所有水体图层逐层向内收，全部内嵌在 pond 矩形内，避免任何一层突出造成“溢出”。
+	draw_rect(pond, POND_RIM)
+	var water := pond.grow(-6.0)
+	draw_rect(water, POND_BODY)
+	draw_rect(Rect2(water.position, Vector2(water.size.x, water.size.y * 0.40)), POND_SHEEN)
 	if cast_hovered and not fishing_active:
-		draw_rect(Rect2(pond.position + Vector2(18, 18), pond.size - Vector2(36, 36)), Color(1.0, 0.96, 0.62, 0.16))
+		draw_rect(water.grow(-4.0), HOVER_TINT)
+	# 水面波光：原地用 sin 轻轻摆动，无缝循环。
+	var lane := water.size.x - 52.0
 	for i in range(4):
-		var x := pond.position.x + 32 + i * 58 + fmod(water_frame * 5.0, 28.0)
-		var y := pond.position.y + 38 + (i % 2) * 18
-		_pixel_rect(Vector2(x, y), Vector2(32, 4), Color(0.78, 0.93, 0.91, 0.78))
+		var rx := water.position.x + 18.0 + lane * (i / 3.0) + sin(phase * 2.0 + i * 1.2) * 4.0
+		var ry := water.position.y + water.size.y * 0.34 + (i % 2) * 14.0
+		_pixel_rect(Vector2(rx, ry), Vector2(24, 4), RIPPLE_COLOR)
+	# 鱼影：以水体中心为轴用 sin 往返游动，振幅限制在水体内。
 	for i in range(3):
-		var fish_x := pond.position.x + 46 + i * 74 + sin((water_frame + i * 7.0) * 0.2) * 12.0
-		var fish_y := pond.position.y + 62 + i % 2 * 26
-		_pixel_rect(Vector2(fish_x, fish_y), Vector2(14, 5), Color(0.09, 0.34, 0.43, 0.42))
+		var fx := water.position.x + water.size.x * 0.5 + sin(phase + i * 2.1) * (water.size.x * 0.30)
+		var fy := water.position.y + water.size.y * (0.46 + 0.16 * i)
+		_pixel_rect(Vector2(fx - 7.0, fy), Vector2(14, 5), FISH_SHADOW)
 	if reward_flash > 0.0:
 		var flash_color := Color(1.0, 0.95, 0.46, reward_flash)
-		_pixel_rect(pond.position + Vector2(pond.size.x * 0.46, 12), Vector2(34, 6), flash_color)
-		_pixel_rect(pond.position + Vector2(pond.size.x * 0.51, 0), Vector2(6, 30), flash_color)
+		_pixel_rect(water.position + Vector2(water.size.x * 0.46, water.size.y * 0.16), Vector2(30, 6), flash_color)
+		_pixel_rect(water.position + Vector2(water.size.x * 0.50, water.size.y * 0.04), Vector2(6, 26), flash_color)
 
 func _draw_desk(w: float, h: float) -> void:
 	var base := Vector2(w * 0.12, h * 0.60)
@@ -177,7 +204,7 @@ func _draw_fisher(w: float, h: float) -> void:
 	_pixel_rect(p + Vector2(0, 18), Vector2(8, 20), Color(0.16, 0.25, 0.31))
 	_pixel_rect(p + Vector2(18, 18), Vector2(8, 20), Color(0.16, 0.25, 0.31))
 	if fishing_active:
-		var rod_end := Vector2(w * 0.45, h * 0.48 + sin(water_frame * 0.35) * 5.0)
+		var rod_end := Vector2(w * 0.45, h * 0.48 + sin(water_frame / LOOP * TAU * 4.0) * 5.0)
 		draw_line(p + Vector2(24, -12), rod_end, Color(0.22, 0.17, 0.12), 3.0)
 		draw_line(rod_end, rod_end + Vector2(0, 38), Color(0.12, 0.18, 0.19, 0.55), 1.0)
 	else:
@@ -203,14 +230,6 @@ func _draw_grass(w: float, h: float) -> void:
 		var y := h * 0.77 + (i % 4) * 8
 		_pixel_rect(Vector2(x, y), Vector2(6, 18), Color(0.24, 0.48, 0.28, 0.75))
 		_pixel_rect(Vector2(x + 7, y + 6), Vector2(5, 12), Color(0.55, 0.68, 0.32, 0.75))
-
-func _draw_cast_hint(w: float, h: float) -> void:
-	if fishing_active:
-		return
-	var hint_pos := Vector2(w * 0.38, h * 0.76)
-	var hint_color := Color(0.95, 0.79, 0.32) if cast_hovered else Color(0.18, 0.32, 0.31)
-	_pixel_rect(hint_pos, Vector2(76, 6), hint_color)
-	_pixel_rect(hint_pos + Vector2(70, -6), Vector2(6, 18), hint_color)
 
 func _update_pond_hover(local_position: Vector2) -> void:
 	var is_over := _get_pond_click_rect().has_point(local_position)
