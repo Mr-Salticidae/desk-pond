@@ -6,7 +6,7 @@
 
 ## 下载
 
-前往 [Releases 页面](https://github.com/Mr-Salticidae/desk-pond/releases/latest) 下载最新的 **DeskPond.exe**，双击即可运行，无需安装（单文件已内置全部资源）。
+前往 [Releases 页面](https://github.com/Mr-Salticidae/desk-pond/releases/latest) 下载最新的 **DeskPond-v*.exe**（文件名带版本号），双击即可运行，无需安装（单文件已内置全部资源）。
 
 ## 当前功能
 
