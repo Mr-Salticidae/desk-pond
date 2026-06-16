@@ -97,7 +97,7 @@ func _start_break() -> void:
 func _build_ui() -> void:
 	if countdown_timer != null:
 		return
-	add_theme_stylebox_override("panel", _panel_style(Color(0.92, 0.88, 0.72), Color(0.37, 0.31, 0.25)))
+	add_theme_stylebox_override("panel", UITheme.panel_style())
 
 	var root := VBoxContainer.new()
 	root.add_theme_constant_override("separation", 6)
@@ -106,11 +106,11 @@ func _build_ui() -> void:
 	var title := Label.new()
 	title.text = "专注钓竿"
 	title.add_theme_font_size_override("font_size", 16)
-	title.add_theme_color_override("font_color", Color(0.22, 0.17, 0.13))
+	title.add_theme_color_override("font_color", UITheme.INK)
 	root.add_child(title)
 
 	mode_label = Label.new()
-	mode_label.add_theme_color_override("font_color", Color(0.42, 0.31, 0.23))
+	mode_label.add_theme_color_override("font_color", UITheme.INK_SOFT)
 	root.add_child(mode_label)
 
 	var settings_grid := GridContainer.new()
@@ -121,7 +121,7 @@ func _build_ui() -> void:
 
 	var focus_label := Label.new()
 	focus_label.text = "专注"
-	focus_label.add_theme_color_override("font_color", Color(0.35, 0.27, 0.20))
+	focus_label.add_theme_color_override("font_color", UITheme.INK_SOFT)
 	settings_grid.add_child(focus_label)
 
 	focus_spin = SpinBox.new()
@@ -136,7 +136,7 @@ func _build_ui() -> void:
 
 	var break_label := Label.new()
 	break_label.text = "休息"
-	break_label.add_theme_color_override("font_color", Color(0.35, 0.27, 0.20))
+	break_label.add_theme_color_override("font_color", UITheme.INK_SOFT)
 	settings_grid.add_child(break_label)
 
 	break_spin = SpinBox.new()
@@ -150,8 +150,8 @@ func _build_ui() -> void:
 	settings_grid.add_child(break_spin)
 
 	time_label = Label.new()
-	time_label.add_theme_font_size_override("font_size", 32)
-	time_label.add_theme_color_override("font_color", Color(0.14, 0.23, 0.24))
+	time_label.add_theme_font_size_override("font_size", 34)
+	time_label.add_theme_color_override("font_color", UITheme.INK)
 	time_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	root.add_child(time_label)
 
@@ -160,9 +160,8 @@ func _build_ui() -> void:
 	progress_bar.max_value = 100
 	progress_bar.value = 0
 	progress_bar.show_percentage = false
-	progress_bar.custom_minimum_size = Vector2(0, 12)
-	progress_bar.add_theme_stylebox_override("background", _bar_style(Color(0.73, 0.66, 0.50), Color(0.42, 0.32, 0.23)))
-	progress_bar.add_theme_stylebox_override("fill", _bar_style(Color(0.26, 0.58, 0.60), Color(0.26, 0.58, 0.60)))
+	progress_bar.custom_minimum_size = Vector2(0, 8)
+	UITheme.style_progress(progress_bar)
 	root.add_child(progress_bar)
 
 	var buttons := HBoxContainer.new()
@@ -173,6 +172,7 @@ func _build_ui() -> void:
 	start_button.text = "甩杆"
 	start_button.tooltip_text = "甩杆并开始一次专注"
 	start_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	UITheme.style_primary(start_button)
 	start_button.pressed.connect(start_focus)
 	buttons.add_child(start_button)
 
@@ -257,35 +257,3 @@ func _on_duration_changed() -> void:
 		"focus_minutes": focus_minutes,
 		"break_minutes": break_minutes
 	})
-
-func _panel_style(fill: Color, border: Color) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = fill
-	style.border_color = border
-	style.border_width_left = 2
-	style.border_width_top = 2
-	style.border_width_right = 2
-	style.border_width_bottom = 2
-	style.corner_radius_top_left = 6
-	style.corner_radius_top_right = 6
-	style.corner_radius_bottom_left = 6
-	style.corner_radius_bottom_right = 6
-	style.content_margin_left = 10
-	style.content_margin_right = 10
-	style.content_margin_top = 8
-	style.content_margin_bottom = 8
-	return style
-
-func _bar_style(fill: Color, border: Color) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = fill
-	style.border_color = border
-	style.border_width_left = 1
-	style.border_width_top = 1
-	style.border_width_right = 1
-	style.border_width_bottom = 1
-	style.corner_radius_top_left = 3
-	style.corner_radius_top_right = 3
-	style.corner_radius_bottom_left = 3
-	style.corner_radius_bottom_right = 3
-	return style

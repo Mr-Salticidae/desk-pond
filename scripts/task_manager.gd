@@ -123,7 +123,7 @@ func toggle_task(task_id: String, done: bool) -> void:
 func _build_ui() -> void:
 	if task_input != null:
 		return
-	add_theme_stylebox_override("panel", _panel_style(Color(0.88, 0.91, 0.78), Color(0.30, 0.40, 0.31)))
+	add_theme_stylebox_override("panel", UITheme.panel_style())
 
 	var root := VBoxContainer.new()
 	root.add_theme_constant_override("separation", 8)
@@ -136,7 +136,7 @@ func _build_ui() -> void:
 	var title := Label.new()
 	title.text = "今日任务苗圃"
 	title.add_theme_font_size_override("font_size", 16)
-	title.add_theme_color_override("font_color", Color(0.17, 0.27, 0.18))
+	title.add_theme_color_override("font_color", UITheme.INK)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(title)
 
@@ -147,7 +147,7 @@ func _build_ui() -> void:
 	header.add_child(expand_button)
 
 	progress_label = Label.new()
-	progress_label.add_theme_color_override("font_color", Color(0.32, 0.39, 0.30))
+	progress_label.add_theme_color_override("font_color", UITheme.INK_SOFT)
 	root.add_child(progress_label)
 
 	var input_row := HBoxContainer.new()
@@ -164,12 +164,13 @@ func _build_ui() -> void:
 	var add_button := Button.new()
 	add_button.text = "播种"
 	add_button.tooltip_text = "添加任务"
+	UITheme.style_primary(add_button)
 	add_button.pressed.connect(func(): add_task(task_input.text))
 	input_row.add_child(add_button)
 
 	feedback_label = Label.new()
 	feedback_label.text = "完成任务会让树成长"
-	feedback_label.add_theme_color_override("font_color", Color(0.25, 0.42, 0.25))
+	feedback_label.add_theme_color_override("font_color", UITheme.INK_SOFT)
 	feedback_label.add_theme_font_size_override("font_size", 13)
 	root.add_child(feedback_label)
 
@@ -243,10 +244,10 @@ func _update_progress() -> void:
 		full_progress_label.text = text
 
 func _show_feedback(message: String) -> void:
-	_set_feedback_text(message, Color(0.08, 0.42, 0.25))
+	_set_feedback_text(message, UITheme.POND)
 	var timer := get_tree().create_timer(1.8)
 	timer.timeout.connect(func():
-		_set_feedback_text("完成任务会让树成长", Color(0.25, 0.42, 0.25))
+		_set_feedback_text("完成任务会让树成长", UITheme.INK_SOFT)
 	)
 
 func _set_feedback_text(message: String, color: Color) -> void:
@@ -286,38 +287,27 @@ func _save_edit_window() -> void:
 func _build_edit_window() -> void:
 	if edit_window != null:
 		return
-	edit_window = Window.new()
-	edit_window.title = "编辑任务"
-	edit_window.size = Vector2i(420, 150)
-	edit_window.visible = false
-	edit_window.close_requested.connect(edit_window.hide)
-	add_child(edit_window)
+	var card := UICard.new()
+	card.configure("编辑任务", Vector2i(420, 172))
+	add_child(card)
+	edit_window = card
 
-	var panel := PanelContainer.new()
-	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	panel.add_theme_stylebox_override("panel", _panel_style(Color(0.94, 0.92, 0.78), Color(0.32, 0.37, 0.30)))
-	edit_window.add_child(panel)
-
-	var root := VBoxContainer.new()
-	root.add_theme_constant_override("separation", 10)
-	panel.add_child(root)
-
-	var title := Label.new()
-	title.text = "编辑任务"
-	title.add_theme_font_size_override("font_size", 18)
-	title.add_theme_color_override("font_color", Color(0.14, 0.24, 0.16))
-	root.add_child(title)
+	var hint := Label.new()
+	hint.text = "改个名字，重新种下。"
+	hint.add_theme_font_size_override("font_size", 13)
+	hint.add_theme_color_override("font_color", UITheme.INK_SOFT)
+	card.body.add_child(hint)
 
 	edit_input = LineEdit.new()
 	edit_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_apply_input_theme(edit_input)
 	edit_input.text_submitted.connect(func(_text: String): _save_edit_window())
-	root.add_child(edit_input)
+	card.body.add_child(edit_input)
 
 	var buttons := HBoxContainer.new()
 	buttons.alignment = BoxContainer.ALIGNMENT_END
 	buttons.add_theme_constant_override("separation", 8)
-	root.add_child(buttons)
+	card.body.add_child(buttons)
 
 	var cancel_button := Button.new()
 	cancel_button.text = "取消"
@@ -326,52 +316,37 @@ func _build_edit_window() -> void:
 
 	var save_button := Button.new()
 	save_button.text = "保存"
+	UITheme.style_primary(save_button)
 	save_button.pressed.connect(_save_edit_window)
 	buttons.add_child(save_button)
 
 func _build_full_task_window() -> void:
 	if full_task_window != null:
 		return
-	full_task_window = Window.new()
-	full_task_window.title = "完整代办清单"
-	full_task_window.size = Vector2i(520, 520)
-	full_task_window.visible = false
-	full_task_window.close_requested.connect(full_task_window.hide)
-	add_child(full_task_window)
+	var card := UICard.new()
+	card.configure("完整代办清单", Vector2i(520, 496))
+	add_child(card)
+	full_task_window = card
 
-	var panel := PanelContainer.new()
-	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	panel.add_theme_stylebox_override("panel", _panel_style(Color(0.91, 0.93, 0.80), Color(0.26, 0.38, 0.29)))
-	full_task_window.add_child(panel)
+	var top_row := HBoxContainer.new()
+	top_row.add_theme_constant_override("separation", 8)
+	card.body.add_child(top_row)
 
-	var root := VBoxContainer.new()
-	root.add_theme_constant_override("separation", 10)
-	panel.add_child(root)
-
-	var title := Label.new()
-	title.text = "完整代办清单"
-	title.add_theme_font_size_override("font_size", 20)
-	title.add_theme_color_override("font_color", Color(0.12, 0.24, 0.15))
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-
-	var header := HBoxContainer.new()
-	header.add_theme_constant_override("separation", 8)
-	root.add_child(header)
-	header.add_child(title)
+	full_progress_label = Label.new()
+	full_progress_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	full_progress_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	full_progress_label.add_theme_color_override("font_color", UITheme.INK_SOFT)
+	top_row.add_child(full_progress_label)
 
 	var clear_button := Button.new()
 	clear_button.text = "清理完成"
 	clear_button.tooltip_text = "移除已经完成的任务"
 	clear_button.pressed.connect(clear_completed_tasks)
-	header.add_child(clear_button)
-
-	full_progress_label = Label.new()
-	full_progress_label.add_theme_color_override("font_color", Color(0.32, 0.39, 0.30))
-	root.add_child(full_progress_label)
+	top_row.add_child(clear_button)
 
 	var input_row := HBoxContainer.new()
 	input_row.add_theme_constant_override("separation", 6)
-	root.add_child(input_row)
+	card.body.add_child(input_row)
 
 	full_task_input = LineEdit.new()
 	full_task_input.placeholder_text = "继续写下今天要做的事"
@@ -383,67 +358,26 @@ func _build_full_task_window() -> void:
 	var add_button := Button.new()
 	add_button.text = "播种"
 	add_button.tooltip_text = "添加任务"
+	UITheme.style_primary(add_button)
 	add_button.pressed.connect(func(): add_task(full_task_input.text))
 	input_row.add_child(add_button)
 
 	full_feedback_label = Label.new()
 	full_feedback_label.text = "完成任务会让树成长"
-	full_feedback_label.add_theme_color_override("font_color", Color(0.25, 0.42, 0.25))
+	full_feedback_label.add_theme_color_override("font_color", UITheme.INK_SOFT)
 	full_feedback_label.add_theme_font_size_override("font_size", 13)
-	root.add_child(full_feedback_label)
+	card.body.add_child(full_feedback_label)
 
 	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(0, 350)
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	root.add_child(scroll)
+	card.body.add_child(scroll)
 
 	full_task_list = VBoxContainer.new()
 	full_task_list.add_theme_constant_override("separation", 6)
 	full_task_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(full_task_list)
 
-func _panel_style(fill: Color, border: Color) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = fill
-	style.border_color = border
-	style.border_width_left = 2
-	style.border_width_top = 2
-	style.border_width_right = 2
-	style.border_width_bottom = 2
-	style.corner_radius_top_left = 6
-	style.corner_radius_top_right = 6
-	style.corner_radius_bottom_left = 6
-	style.corner_radius_bottom_right = 6
-	style.content_margin_left = 10
-	style.content_margin_right = 10
-	style.content_margin_top = 8
-	style.content_margin_bottom = 8
-	return style
-
-func _input_style(fill: Color, border: Color, border_width: int) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = fill
-	style.border_color = border
-	style.border_width_left = border_width
-	style.border_width_top = border_width
-	style.border_width_right = border_width
-	style.border_width_bottom = border_width
-	style.corner_radius_top_left = 5
-	style.corner_radius_top_right = 5
-	style.corner_radius_bottom_left = 5
-	style.corner_radius_bottom_right = 5
-	style.content_margin_left = 8
-	style.content_margin_right = 8
-	style.content_margin_top = 6
-	style.content_margin_bottom = 6
-	return style
-
 func _apply_input_theme(line_edit: LineEdit) -> void:
-	line_edit.add_theme_color_override("font_color", Color(0.07, 0.10, 0.10))
-	line_edit.add_theme_color_override("font_placeholder_color", Color(0.30, 0.36, 0.33))
-	line_edit.add_theme_color_override("caret_color", Color(0.08, 0.36, 0.43))
-	line_edit.add_theme_color_override("selection_color", Color(0.95, 0.72, 0.34, 0.50))
-	line_edit.add_theme_stylebox_override("normal", _input_style(Color(1.0, 0.98, 0.87), Color(0.39, 0.46, 0.39), 2))
-	line_edit.add_theme_stylebox_override("focus", _input_style(Color(1.0, 0.99, 0.90), Color(0.08, 0.38, 0.44), 3))
+	UITheme.style_input(line_edit)

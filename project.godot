@@ -24,7 +24,9 @@ window/size/viewport_width=640
 window/size/viewport_height=520
 window/size/window_width_override=640
 window/size/window_height_override=520
+window/size/borderless=true
 window/stretch/mode="canvas_items"
+window/subwindows/embed_subwindows=true
 
 [rendering]
 
