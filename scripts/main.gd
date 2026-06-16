@@ -22,6 +22,11 @@ var collection_window: Window
 var collection_list: VBoxContainer
 var help_window: Window
 
+var scene_area: Control
+var forest_view: ForestView
+var current_room := "pond"
+var room_tabs: Dictionary = {}
+
 var _dragging_window: bool = false
 var _drag_anchor: Vector2i = Vector2i.ZERO
 
@@ -64,13 +69,17 @@ func _build_ui() -> void:
 	top_bar.add_theme_constant_override("separation", 6)
 	top_bar_panel.add_child(top_bar)
 
-	var app_title := Label.new()
-	app_title.text = "工位池塘 Desk Pond"
-	app_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	app_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	app_title.add_theme_font_size_override("font_size", 15)
-	app_title.add_theme_color_override("font_color", UITheme.INK_ON_CHROME)
-	top_bar.add_child(app_title)
+	var room_group := ButtonGroup.new()
+	_make_room_tab("池塘", "pond", room_group, top_bar)
+	_make_room_tab("森林", "forest", room_group, top_bar)
+	var aqua_tab := _make_room_tab("水族馆", "aquarium", room_group, top_bar)
+	aqua_tab.disabled = true
+	aqua_tab.tooltip_text = "即将开放"
+
+	var spacer := Control.new()
+	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	top_bar.add_child(spacer)
 
 	stats_label = Label.new()
 	stats_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -118,11 +127,21 @@ func _build_ui() -> void:
 	close_button.pressed.connect(_on_close_pressed)
 	top_bar.add_child(close_button)
 
+	scene_area = Control.new()
+	scene_area.custom_minimum_size = Vector2(640, 200)
+	scene_area.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scene_area.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scene_area.clip_contents = true
+	root.add_child(scene_area)
+
 	pixel_world = PixelWorldScene.instantiate()
-	pixel_world.custom_minimum_size = Vector2(640, 200)
-	pixel_world.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	pixel_world.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	root.add_child(pixel_world)
+	pixel_world.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	scene_area.add_child(pixel_world)
+
+	forest_view = ForestView.new()
+	forest_view.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	forest_view.visible = false
+	scene_area.add_child(forest_view)
 
 	var bottom_margin := MarginContainer.new()
 	bottom_margin.custom_minimum_size = Vector2(0, 280)
@@ -153,6 +172,9 @@ func _build_ui() -> void:
 	_build_collection_window()
 	_build_help_window()
 
+	room_tabs["pond"].set_pressed_no_signal(true)
+	_switch_room("pond")
+
 func _setup_modules() -> void:
 	fishing_manager.set_fish_count(save_data.get("fish_count", {}))
 	tree_manager.set_growth_points(int(save_data.get("tree_growth_points", 0)))
@@ -170,7 +192,7 @@ func _setup_modules() -> void:
 	task_panel.task_deleted.connect(func(_task_id: String): _save_now())
 	tree_manager.growth_changed.connect(_on_tree_growth_changed)
 
-	_on_tree_growth_changed(tree_manager.growth_points, tree_manager.tree_stage)
+	_on_tree_growth_changed(tree_manager.growth_points)
 	_update_stats()
 	_render_collection()
 
@@ -186,7 +208,7 @@ func _on_focus_completed() -> void:
 func _on_task_completed(_task: Dictionary) -> void:
 	tree_manager.add_growth_point(1)
 	save_data["tree_growth_points"] = tree_manager.growth_points
-	save_data["tree_stage"] = tree_manager.tree_stage
+	save_data["tree_stage"] = tree_manager.pond_tree_stage()
 	_save_now()
 
 func _on_tasks_changed(tasks: Array) -> void:
@@ -194,12 +216,38 @@ func _on_tasks_changed(tasks: Array) -> void:
 	save_data["tasks_completed"] = task_panel.get_tasks_completed_today()
 	_save_now()
 
-func _on_tree_growth_changed(growth_points: int, tree_stage: int) -> void:
+func _on_tree_growth_changed(growth_points: int) -> void:
 	save_data["tree_growth_points"] = growth_points
-	save_data["tree_stage"] = tree_stage
+	save_data["tree_stage"] = tree_manager.pond_tree_stage()
 	if pixel_world:
-		pixel_world.update_tree_visual(tree_stage, growth_points)
+		pixel_world.update_tree_visual(tree_manager.pond_tree_stage(), tree_manager.mature_count())
+	if forest_view:
+		forest_view.update_forest(tree_manager)
 	_update_stats()
+
+func _make_room_tab(text: String, room_id: String, group: ButtonGroup, parent: Control) -> Button:
+	var tab := Button.new()
+	tab.text = text
+	tab.toggle_mode = true
+	tab.button_group = group
+	tab.focus_mode = Control.FOCUS_NONE
+	UITheme.style_chrome(tab)
+	tab.toggled.connect(func(on: bool):
+		if on:
+			_switch_room(room_id)
+	)
+	parent.add_child(tab)
+	room_tabs[room_id] = tab
+	return tab
+
+func _switch_room(room: String) -> void:
+	current_room = room
+	if pixel_world:
+		pixel_world.visible = room == "pond"
+	if forest_view:
+		forest_view.visible = room == "forest"
+		if room == "forest":
+			forest_view.update_forest(tree_manager)
 
 func _on_timer_state_changed(state: String) -> void:
 	if pixel_world:
@@ -383,6 +431,6 @@ func _save_now() -> void:
 		save_data["fish_count"] = fishing_manager.get_fish_count()
 	if tree_manager:
 		save_data["tree_growth_points"] = tree_manager.growth_points
-		save_data["tree_stage"] = tree_manager.tree_stage
+		save_data["tree_stage"] = tree_manager.pond_tree_stage()
 	_update_stats()
 	save_manager.save_game(save_data)

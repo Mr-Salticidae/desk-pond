@@ -74,13 +74,16 @@ func set_activity_state(timer_state: String) -> void:
 				status_label.text = "点击池塘甩杆"
 	queue_redraw()
 
-func update_tree_visual(stage: int, growth_points: int = 0) -> void:
+func update_tree_visual(stage: int, forest_count: int = 0) -> void:
 	tree_stage = int(clamp(stage, 0, 3))
-	self.growth_points = growth_points
+	self.growth_points = forest_count
 	if tree_label == null:
 		return
-	var names := ["种子", "小树苗", "小树", "大树"]
-	tree_label.text = "%s  Lv.%d" % [names[tree_stage], growth_points]
+	if forest_count > 0:
+		tree_label.text = "林 · %d 棵" % forest_count
+	else:
+		var names := ["种子", "小树苗", "小树", "大树"]
+		tree_label.text = names[tree_stage]
 	queue_redraw()
 
 func play_focus_feedback() -> void:
