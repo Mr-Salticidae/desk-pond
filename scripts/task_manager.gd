@@ -175,7 +175,9 @@ func _build_ui() -> void:
 	root.add_child(feedback_label)
 
 	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(0, 130)
+	# 只给一个很小的最小高度，让滚动区随面板伸缩、不把面板撑出窗口外；
+	# 任务超过可见行数时由滚动条承接，避免末尾被窗口边缘截断。
+	scroll.custom_minimum_size = Vector2(0, 64)
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
