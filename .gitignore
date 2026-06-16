@@ -6,6 +6,7 @@
 # Exported builds
 exports/
 builds/
+build/
 *.exe
 *.app
 *.x86_64
@@ -23,3 +24,6 @@ Thumbs.db
 desktop.ini
 .vscode/
 .idea/
+
+# Local marketing assets (kept on disk, not part of the game repo)
+promo/
