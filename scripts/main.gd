@@ -24,6 +24,7 @@ var help_window: Window
 
 var scene_area: Control
 var forest_view: ForestView
+var aquarium_view: AquariumView
 var current_room := "pond"
 var room_tabs: Dictionary = {}
 
@@ -72,9 +73,7 @@ func _build_ui() -> void:
 	var room_group := ButtonGroup.new()
 	_make_room_tab("池塘", "pond", room_group, top_bar)
 	_make_room_tab("森林", "forest", room_group, top_bar)
-	var aqua_tab := _make_room_tab("水族馆", "aquarium", room_group, top_bar)
-	aqua_tab.disabled = true
-	aqua_tab.tooltip_text = "即将开放"
+	_make_room_tab("水族馆", "aquarium", room_group, top_bar)
 
 	var spacer := Control.new()
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -145,6 +144,11 @@ func _build_ui() -> void:
 	forest_view.visible = false
 	scene_area.add_child(forest_view)
 
+	aquarium_view = AquariumView.new()
+	aquarium_view.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	aquarium_view.visible = false
+	scene_area.add_child(aquarium_view)
+
 	var bottom_margin := MarginContainer.new()
 	bottom_margin.custom_minimum_size = Vector2(0, 280)
 	bottom_margin.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -205,6 +209,8 @@ func _on_focus_completed() -> void:
 	pixel_world.play_focus_feedback()
 	reward_popup.show_reward(fish)
 	_render_collection()
+	if aquarium_view:
+		aquarium_view.update_tank(fishing_manager)
 	_save_now()
 
 func _on_task_completed(_task: Dictionary) -> void:
@@ -250,6 +256,10 @@ func _switch_room(room: String) -> void:
 		forest_view.visible = room == "forest"
 		if room == "forest":
 			forest_view.update_forest(tree_manager)
+	if aquarium_view:
+		aquarium_view.visible = room == "aquarium"
+		if room == "aquarium":
+			aquarium_view.update_tank(fishing_manager)
 
 func _on_timer_state_changed(state: String) -> void:
 	if pixel_world:
