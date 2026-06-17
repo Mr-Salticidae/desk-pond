@@ -4,21 +4,49 @@
     "name": "摸鱼鲫鱼",
     "rarity": "common",
     "description": "最常见的池塘居民，喜欢在日程缝隙里慢慢游。",
-    "weight": 50
+    "weight": 40
+  },
+  {
+    "id": "salted_fish",
+    "name": "咸鱼",
+    "rarity": "common",
+    "description": "翻不翻身看心情，但今天它愿意陪你浮一会儿。",
+    "weight": 28
   },
   {
     "id": "meeting_carp",
     "name": "会议鲤鱼",
     "rarity": "common",
     "description": "听过很多会议纪要，尾巴一甩就能翻出三条待办。",
-    "weight": 30
+    "weight": 26
+  },
+  {
+    "id": "commute_sardine",
+    "name": "通勤沙丁鱼",
+    "rarity": "common",
+    "description": "总是挤成一团，和早高峰一个表情。",
+    "weight": 22
+  },
+  {
+    "id": "keyboard_loach",
+    "name": "键盘泥鳅",
+    "rarity": "uncommon",
+    "description": "在键缝里钻得飞快，敲完最后一行就溜走。",
+    "weight": 14
   },
   {
     "id": "deadline_goldfish",
     "name": "截稿金鱼",
     "rarity": "uncommon",
     "description": "只在你真的坐下来推进事情时出现，鳞片像提醒事项一样闪。",
-    "weight": 15
+    "weight": 12
+  },
+  {
+    "id": "weekly_pufferfish",
+    "name": "周报河豚",
+    "rarity": "uncommon",
+    "description": "一到周五就鼓成一团，写完才肯慢慢瘪下去。",
+    "weight": 8
   },
   {
     "id": "overtime_eel",
@@ -33,5 +61,21 @@
     "rarity": "rare",
     "description": "里面没有 KPI，只有一句来自未来自己的谢谢。",
     "weight": 1
+  },
+  {
+    "id": "annual_koi",
+    "name": "年度锦鲤",
+    "rarity": "milestone",
+    "description": "传说一年只浮现一次，见过的人那阵子都很顺。",
+    "weight": 0,
+    "unlock": { "type": "total_sessions", "value": 25 }
+  },
+  {
+    "id": "slacking_legend",
+    "name": "摸鱼之神",
+    "rarity": "milestone",
+    "description": "钓够六十次，它从池底慢慢浮上来，对你点了点头。",
+    "weight": 0,
+    "unlock": { "type": "total_catches", "value": 60 }
   }
 ]

@@ -204,7 +204,10 @@ func _setup_modules() -> void:
 
 func _on_focus_completed() -> void:
 	save_data["pomodoro_completed"] = int(save_data.get("pomodoro_completed", 0)) + 1
-	var fish := fishing_manager.roll_fish()
+	save_data["total_focus_sessions"] = int(save_data.get("total_focus_sessions", 0)) + 1
+	var fish := fishing_manager.roll_reward({
+		"total_sessions": int(save_data["total_focus_sessions"])
+	})
 	save_data["fish_count"] = fishing_manager.get_fish_count()
 	pixel_world.play_focus_feedback()
 	reward_popup.show_reward(fish)
@@ -416,6 +419,8 @@ func _rarity_name(rarity: String) -> String:
 			return "少见"
 		"rare":
 			return "稀有"
+		"milestone":
+			return "限定"
 		_:
 			return "常见"
 
@@ -425,6 +430,8 @@ func _rarity_color(rarity: String) -> Color:
 			return Color(0.22, 0.45, 0.21)
 		"rare":
 			return Color(0.55, 0.27, 0.63)
+		"milestone":
+			return Color(0.85, 0.62, 0.15)
 		_:
 			return Color(0.35, 0.36, 0.30)
 

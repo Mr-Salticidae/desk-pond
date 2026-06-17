@@ -72,6 +72,8 @@ func _rarity_name(rarity: String) -> String:
 			return "少见钓获"
 		"rare":
 			return "稀有钓获"
+		"milestone":
+			return "限定钓获"
 		_:
 			return "常见钓获"
 
@@ -81,5 +83,7 @@ func _rarity_color(rarity: String) -> Color:
 			return Color(0.31, 0.52, 0.33)
 		"rare":
 			return Color(0.55, 0.36, 0.62)
+		"milestone":
+			return Color(0.85, 0.62, 0.15)
 		_:
 			return UITheme.INK_SOFT

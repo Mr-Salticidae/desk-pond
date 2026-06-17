@@ -26,9 +26,15 @@ const INK_SOFT := Color(0.80, 0.90, 0.93)
 # 每种鱼的体色（按 fish id）：[主色, 鳍/尾色]
 const FISH_COLORS := {
 	"slacking_crucian": [Color(0.55, 0.62, 0.42), Color(0.42, 0.50, 0.32)],
+	"salted_fish": [Color(0.78, 0.74, 0.70), Color(0.62, 0.58, 0.55)],
 	"meeting_carp": [Color(0.85, 0.55, 0.30), Color(0.70, 0.42, 0.22)],
+	"commute_sardine": [Color(0.62, 0.70, 0.78), Color(0.48, 0.56, 0.66)],
+	"keyboard_loach": [Color(0.50, 0.42, 0.30), Color(0.38, 0.32, 0.22)],
 	"deadline_goldfish": [Color(0.97, 0.66, 0.22), Color(0.88, 0.46, 0.16)],
+	"weekly_pufferfish": [Color(0.86, 0.78, 0.45), Color(0.70, 0.62, 0.34)],
 	"overtime_eel": [Color(0.34, 0.30, 0.42), Color(0.24, 0.22, 0.30)],
+	"annual_koi": [Color(0.97, 0.55, 0.30), Color(0.95, 0.95, 0.95)],
+	"slacking_legend": [Color(0.95, 0.80, 0.30), Color(0.80, 0.62, 0.18)],
 }
 
 var title_label: Label
@@ -216,6 +222,9 @@ func _draw_fish(c: Vector2, s: float, fish_id: String, facing: float, ph: float)
 	if fish_id == "overtime_eel":
 		_draw_eel(c, s, facing, ph)
 		return
+	if fish_id == "weekly_pufferfish":
+		_draw_puffer(c, s, facing)
+		return
 	var cols: Array = FISH_COLORS.get(fish_id, [Color(0.6, 0.6, 0.6), Color(0.45, 0.45, 0.45)])
 	var body: Color = cols[0]
 	var fin: Color = cols[1]
@@ -227,9 +236,32 @@ func _draw_fish(c: Vector2, s: float, fish_id: String, facing: float, ph: float)
 	# 尾巴：在身体后方（与朝向相反）
 	var tail_x := c.x - facing * (bw * 0.5)
 	_px(tail_x - (3.0 * s if facing > 0.0 else 0.0), c.y - bh * 0.5, 3.0 * s, bh, fin)
-	# 眼睛：靠近前方
+	# 眼睛：靠近前方；咸鱼用一对小叉，致敬"咸鱼"梗
 	var eye := maxf(1.5 * s, 1.0)
-	_px(c.x + facing * (bw * 0.30), c.y - 1.0 * s, eye, eye, Color(0.08, 0.10, 0.12))
+	var ex := c.x + facing * (bw * 0.30)
+	if fish_id == "salted_fish":
+		_px(ex - eye * 0.5, c.y - 1.5 * s, eye * 1.6, maxf(s, 1.0), Color(0.20, 0.22, 0.24))
+		_px(ex, c.y - 2.0 * s, maxf(s, 1.0), eye * 1.6, Color(0.20, 0.22, 0.24))
+	else:
+		_px(ex, c.y - 1.0 * s, eye, eye, Color(0.08, 0.10, 0.12))
+
+func _draw_puffer(c: Vector2, s: float, facing: float) -> void:
+	var cols: Array = FISH_COLORS["weekly_pufferfish"]
+	var body: Color = cols[0]
+	var fin: Color = cols[1]
+	var d := 12.0 * s   # 近乎圆球
+	_px(c.x - d * 0.5, c.y - d * 0.5, d, d, body)
+	# 四向小刺
+	_px(c.x - d * 0.5 - 2.0 * s, c.y - 1.0 * s, 2.0 * s, 2.0 * s, fin)
+	_px(c.x + d * 0.5, c.y - 1.0 * s, 2.0 * s, 2.0 * s, fin)
+	_px(c.x - 1.0 * s, c.y - d * 0.5 - 2.0 * s, 2.0 * s, 2.0 * s, fin)
+	_px(c.x - 1.0 * s, c.y + d * 0.5, 2.0 * s, 2.0 * s, fin)
+	# 小尾
+	var tail_x := c.x - facing * (d * 0.5)
+	_px(tail_x - (3.0 * s if facing > 0.0 else 0.0), c.y - 2.0 * s, 3.0 * s, 4.0 * s, fin)
+	# 眼睛
+	var eye := maxf(1.5 * s, 1.0)
+	_px(c.x + facing * (d * 0.22), c.y - 2.0 * s, eye, eye, Color(0.08, 0.10, 0.12))
 
 func _draw_eel(c: Vector2, s: float, facing: float, ph: float) -> void:
 	var cols: Array = FISH_COLORS["overtime_eel"]

@@ -26,6 +26,35 @@ func set_fish_count(value: Dictionary) -> void:
 		if fish_id != "" and not fish_count.has(fish_id):
 			fish_count[fish_id] = 0
 
+# 一次专注完成的奖励：先看有没有刚达成、尚未获得的里程碑鱼，有则直接奖励它
+# （取代随机，做成"达成时刻"）；否则按权重随机钓一条。
+func roll_reward(stats: Dictionary) -> Dictionary:
+	for fish in fish_data:
+		var unlock = fish.get("unlock", null)
+		if typeof(unlock) != TYPE_DICTIONARY:
+			continue
+		var fish_id := String(fish.get("id", ""))
+		if fish_id == "" or int(fish_count.get(fish_id, 0)) > 0:
+			continue  # 已获得，不重复奖励
+		if _milestone_met(unlock, stats):
+			add_fish(fish_id)
+			return fish
+	return roll_fish()
+
+func _milestone_met(unlock: Dictionary, stats: Dictionary) -> bool:
+	match String(unlock.get("type", "")):
+		"total_sessions":
+			return int(stats.get("total_sessions", 0)) >= int(unlock.get("value", 0))
+		"total_catches":
+			return _total_catches() >= int(unlock.get("value", 0))
+	return false
+
+func _total_catches() -> int:
+	var total := 0
+	for value in fish_count.values():
+		total += int(value)
+	return total
+
 func roll_fish() -> Dictionary:
 	if fish_data.is_empty():
 		return {}

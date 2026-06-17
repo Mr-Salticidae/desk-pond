@@ -22,16 +22,23 @@ func get_default_save() -> Dictionary:
 	return {
 		"date": _today(),
 		"pomodoro_completed": 0,
+		"total_focus_sessions": 0,
 		"tasks_completed": 0,
 		"tree_growth_points": 0,
 		"tree_stage": 0,
 		"tasks": [],
 		"fish_count": {
 			"slacking_crucian": 0,
+			"salted_fish": 0,
 			"meeting_carp": 0,
+			"commute_sardine": 0,
+			"keyboard_loach": 0,
 			"deadline_goldfish": 0,
+			"weekly_pufferfish": 0,
 			"overtime_eel": 0,
-			"drift_bottle": 0
+			"drift_bottle": 0,
+			"annual_koi": 0,
+			"slacking_legend": 0
 		},
 		"settings": {
 			"always_on_top": false,
