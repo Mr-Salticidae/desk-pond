@@ -37,6 +37,16 @@ const FISH_COLORS := {
 	"slacking_legend": [Color(0.95, 0.80, 0.30), Color(0.80, 0.62, 0.18)],
 }
 
+# 里程碑解锁的装饰：达标后入缸，玩家可在「档案」里开关 / 换位。
+# unlock_type: total_sessions(累计专注次数) / fish(钓到某条鱼)
+const DECOR := [
+	{"id": "coral", "name": "珊瑚", "unlock_type": "total_sessions", "unlock_value": 10, "unlock_label": "累计专注 10 次"},
+	{"id": "shipwreck", "name": "沉船", "unlock_type": "total_sessions", "unlock_value": 40, "unlock_label": "累计专注 40 次"},
+	{"id": "chest", "name": "宝箱", "unlock_type": "fish", "unlock_value": "annual_koi", "unlock_label": "钓到年度锦鲤"},
+]
+# 装饰槽位（缸底，0/1/2 = 左/中/右）
+const DECOR_SLOTS := [0.20, 0.50, 0.80]
+
 var title_label: Label
 var count_label: Label
 var hint_label: Label
@@ -47,6 +57,7 @@ var tank_frame := 0.0
 var fish_list: Array = []   # 已展开到实例级：[{id, depth} ...]，最多 MAX_FISH
 var total_fish := 0
 var distinct := 0
+var active_decor: Array = []   # 当前已解锁且开启的装饰：[{id, slot} ...]
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -89,7 +100,17 @@ func _make_label(font_size: int, color: Color) -> Label:
 	add_child(l)
 	return l
 
-func update_tank(fishing_manager: FishingManager) -> void:
+# 某装饰是否已按里程碑解锁；main 也用它来渲染「布置」界面。
+static func decor_unlocked(decor: Dictionary, stats: Dictionary) -> bool:
+	match String(decor.get("unlock_type", "")):
+		"total_sessions":
+			return int(stats.get("total_sessions", 0)) >= int(decor.get("unlock_value", 0))
+		"fish":
+			var fc: Dictionary = stats.get("fish_counts", {})
+			return int(fc.get(String(decor.get("unlock_value", "")), 0)) > 0
+	return false
+
+func update_tank(fishing_manager: FishingManager, ctx: Dictionary = {}) -> void:
 	var counts := fishing_manager.get_fish_count()
 	var data := fishing_manager.get_fish_data()
 	total_fish = 0
@@ -121,6 +142,18 @@ func update_tank(fishing_manager: FishingManager) -> void:
 		fish_list[i]["depth"] = _hash(i * 2 + 3)
 	fish_list.sort_custom(func(a, b): return float(a["depth"]) < float(b["depth"]))
 
+	# 装饰：解锁且开启的才入缸
+	var stats := {"total_sessions": int(ctx.get("total_sessions", 0)), "fish_counts": counts}
+	var prefs: Dictionary = ctx.get("decor", {})
+	active_decor = []
+	for decor in DECOR:
+		if not decor_unlocked(decor, stats):
+			continue
+		var pref: Dictionary = prefs.get(String(decor["id"]), {})
+		if not bool(pref.get("on", true)):
+			continue
+		active_decor.append({"id": String(decor["id"]), "slot": int(pref.get("slot", 0))})
+
 	_refresh_labels()
 	queue_redraw()
 
@@ -144,6 +177,7 @@ func _draw() -> void:
 	var phase := tank_frame / LOOP * TAU
 	_draw_tank(phase)
 	_draw_plants(phase)
+	_draw_decor()
 	_draw_fish_all(phase)
 	_draw_bubbles()
 
@@ -288,6 +322,49 @@ func _draw_bottle(c: Vector2, s: float, _ph: float) -> void:
 	_px(c.x - 2.0 * s, c.y - bh * 0.5 - 4.0 * s, 4.0 * s, 4.0 * s, glass)    # 瓶颈
 	_px(c.x - 1.5 * s, c.y - bh * 0.5 - 6.0 * s, 3.0 * s, 2.0 * s, cork)     # 瓶塞
 	_px(c.x - bw * 0.35, c.y - 1.0 * s, bw * 0.7, 3.0 * s, Color(0.93, 0.90, 0.80))  # 标签
+
+func _draw_decor() -> void:
+	if active_decor.is_empty():
+		return
+	var water := _water_rect()
+	var base_y := water.position.y + water.size.y - 13.0   # 落在沙面上
+	for d in active_decor:
+		var slot := clampi(int(d["slot"]), 0, DECOR_SLOTS.size() - 1)
+		var bx: float = water.position.x + water.size.x * float(DECOR_SLOTS[slot])
+		match String(d["id"]):
+			"coral":
+				_draw_coral(Vector2(bx, base_y))
+			"shipwreck":
+				_draw_shipwreck(Vector2(bx, base_y))
+			"chest":
+				_draw_chest(Vector2(bx, base_y))
+
+func _draw_coral(base: Vector2) -> void:
+	var c1 := Color(0.86, 0.42, 0.46)
+	var c2 := Color(0.93, 0.60, 0.50)
+	_px(base.x - 3.0, base.y - 18.0, 6, 18, c1)         # 主干
+	_px(base.x - 10.0, base.y - 14.0, 5, 12, c2)        # 左枝
+	_px(base.x + 6.0, base.y - 16.0, 5, 14, c2)         # 右枝
+	_px(base.x - 11.0, base.y - 20.0, 5, 7, c1)         # 左枝顶
+	_px(base.x + 7.0, base.y - 23.0, 5, 8, c1)          # 右枝顶
+
+func _draw_shipwreck(base: Vector2) -> void:
+	var hull := Color(0.42, 0.30, 0.22)
+	var hull_dark := Color(0.32, 0.22, 0.16)
+	var mast := Color(0.50, 0.38, 0.26)
+	_px(base.x - 22.0, base.y - 12.0, 44, 12, hull)     # 船身
+	_px(base.x - 22.0, base.y - 4.0, 44, 4, hull_dark)  # 船底阴影
+	_px(base.x - 6.0, base.y - 30.0, 4, 20, mast)       # 断桅（微倾）
+	_px(base.x - 14.0, base.y - 16.0, 6, 5, hull_dark)  # 破洞
+
+func _draw_chest(base: Vector2) -> void:
+	var wood := Color(0.55, 0.38, 0.22)
+	var lid := Color(0.46, 0.31, 0.18)
+	var gold := Color(0.95, 0.80, 0.30)
+	_px(base.x - 9.0, base.y - 11.0, 18, 11, wood)      # 箱体
+	_px(base.x - 9.0, base.y - 16.0, 18, 5, lid)        # 箱盖
+	_px(base.x - 2.0, base.y - 13.0, 4, 5, gold)        # 锁扣
+	_px(base.x - 9.0, base.y - 8.0, 18, 2, lid)         # 箱箍
 
 func _px(x: float, y: float, w: float, h: float, color: Color) -> void:
 	draw_rect(Rect2(Vector2(x, y).round(), Vector2(maxf(w, 1.0), maxf(h, 1.0)).round()), color)

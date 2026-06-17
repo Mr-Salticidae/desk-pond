@@ -18,15 +18,20 @@ var task_panel: TaskManager
 var reward_popup: RewardPopup
 var stats_label: Label
 var always_on_top_button: Button
-var collection_window: Window
+var catalog_view: Control
 var collection_list: VBoxContainer
 var help_window: Window
+var ledger_window: Window
+var ledger_body: VBoxContainer
 
 var scene_area: Control
 var forest_view: ForestView
 var aquarium_view: AquariumView
 var current_room := "pond"
 var room_tabs: Dictionary = {}
+var aqua_subtab_bar: HBoxContainer
+var aqua_subtabs: Dictionary = {}
+var aquarium_submode := "tank"
 
 var _dragging_window: bool = false
 var _drag_anchor: Vector2i = Vector2i.ZERO
@@ -75,6 +80,16 @@ func _build_ui() -> void:
 	_make_room_tab("森林", "forest", room_group, top_bar)
 	_make_room_tab("水族馆", "aquarium", room_group, top_bar)
 
+	# 水族馆内的子标签：鱼缸 / 图鉴（仅在水族馆房间显示）
+	aqua_subtab_bar = HBoxContainer.new()
+	aqua_subtab_bar.add_theme_constant_override("separation", 4)
+	aqua_subtab_bar.visible = false
+	top_bar.add_child(aqua_subtab_bar)
+	var sub_group := ButtonGroup.new()
+	_make_aqua_subtab("鱼缸", "tank", sub_group, aqua_subtab_bar)
+	_make_aqua_subtab("图鉴", "catalog", sub_group, aqua_subtab_bar)
+	aqua_subtabs["tank"].set_pressed_no_signal(true)
+
 	var spacer := Control.new()
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -86,13 +101,13 @@ func _build_ui() -> void:
 	stats_label.add_theme_color_override("font_color", Color(0.878, 0.902, 0.855, 0.66))
 	top_bar.add_child(stats_label)
 
-	var collection_button := Button.new()
-	collection_button.text = "图鉴"
-	collection_button.focus_mode = Control.FOCUS_NONE
-	collection_button.tooltip_text = "查看钓获收藏"
-	UITheme.style_chrome(collection_button)
-	collection_button.pressed.connect(_open_collection_window)
-	top_bar.add_child(collection_button)
+	var ledger_button := Button.new()
+	ledger_button.text = "档案"
+	ledger_button.focus_mode = Control.FOCUS_NONE
+	ledger_button.tooltip_text = "查看成长档案与水缸布置"
+	UITheme.style_chrome(ledger_button)
+	ledger_button.pressed.connect(_open_ledger_window)
+	top_bar.add_child(ledger_button)
 
 	var help_button := Button.new()
 	help_button.text = "?"
@@ -149,6 +164,8 @@ func _build_ui() -> void:
 	aquarium_view.visible = false
 	scene_area.add_child(aquarium_view)
 
+	_build_catalog_view()
+
 	var bottom_margin := MarginContainer.new()
 	bottom_margin.custom_minimum_size = Vector2(0, 280)
 	bottom_margin.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -175,8 +192,8 @@ func _build_ui() -> void:
 
 	reward_popup = RewardPopup.new()
 	add_child(reward_popup)
-	_build_collection_window()
 	_build_help_window()
+	_build_ledger_window()
 
 	room_tabs["pond"].set_pressed_no_signal(true)
 	_switch_room("pond")
@@ -209,17 +226,26 @@ func _on_focus_completed() -> void:
 		"total_sessions": int(save_data["total_focus_sessions"])
 	})
 	save_data["fish_count"] = fishing_manager.get_fish_count()
+	_record_first_caught(String(fish.get("id", "")))
 	pixel_world.play_focus_feedback()
 	reward_popup.show_reward(fish)
 	_render_collection()
-	if aquarium_view:
-		aquarium_view.update_tank(fishing_manager)
+	_refresh_aquarium()
 	_save_now()
+
+func _record_first_caught(fish_id: String) -> void:
+	if fish_id == "":
+		return
+	var first: Dictionary = save_data.get("first_caught", {})
+	if not first.has(fish_id):
+		first[fish_id] = save_manager.current_datetime().substr(0, 10)
+		save_data["first_caught"] = first
 
 func _on_task_completed(_task: Dictionary) -> void:
 	tree_manager.add_growth_point(1)
 	save_data["tree_growth_points"] = tree_manager.growth_points
 	save_data["tree_stage"] = tree_manager.pond_tree_stage()
+	save_data["total_tasks_completed"] = int(save_data.get("total_tasks_completed", 0)) + 1
 	_save_now()
 
 func _on_tasks_changed(tasks: Array) -> void:
@@ -251,6 +277,21 @@ func _make_room_tab(text: String, room_id: String, group: ButtonGroup, parent: C
 	room_tabs[room_id] = tab
 	return tab
 
+func _make_aqua_subtab(text: String, mode: String, group: ButtonGroup, parent: Control) -> Button:
+	var tab := Button.new()
+	tab.text = text
+	tab.toggle_mode = true
+	tab.button_group = group
+	tab.focus_mode = Control.FOCUS_NONE
+	UITheme.style_chrome(tab)
+	tab.toggled.connect(func(on: bool):
+		if on:
+			_set_aqua_submode(mode)
+	)
+	parent.add_child(tab)
+	aqua_subtabs[mode] = tab
+	return tab
+
 func _switch_room(room: String) -> void:
 	current_room = room
 	if pixel_world:
@@ -259,10 +300,36 @@ func _switch_room(room: String) -> void:
 		forest_view.visible = room == "forest"
 		if room == "forest":
 			forest_view.update_forest(tree_manager)
+	var in_aqua := room == "aquarium"
+	if aqua_subtab_bar:
+		aqua_subtab_bar.visible = in_aqua
+	if in_aqua:
+		_set_aqua_submode(aquarium_submode)
+	else:
+		if aquarium_view:
+			aquarium_view.visible = false
+		if catalog_view:
+			catalog_view.visible = false
+
+func _set_aqua_submode(mode: String) -> void:
+	aquarium_submode = mode
+	var show_tank := mode == "tank"
 	if aquarium_view:
-		aquarium_view.visible = room == "aquarium"
-		if room == "aquarium":
-			aquarium_view.update_tank(fishing_manager)
+		aquarium_view.visible = show_tank
+		if show_tank:
+			_refresh_aquarium()
+	if catalog_view:
+		catalog_view.visible = not show_tank
+		if not show_tank:
+			_render_collection()
+
+func _refresh_aquarium() -> void:
+	if aquarium_view == null:
+		return
+	aquarium_view.update_tank(fishing_manager, {
+		"total_sessions": int(save_data.get("total_focus_sessions", 0)),
+		"decor": save_data.get("aquarium_decor", {})
+	})
 
 func _on_timer_state_changed(state: String) -> void:
 	if pixel_world:
@@ -310,25 +377,29 @@ func _on_close_pressed() -> void:
 	_save_now()
 	get_tree().quit()
 
-func _open_collection_window() -> void:
-	if collection_window == null:
-		_build_collection_window()
-	_render_collection()
-	collection_window.popup_centered()
-
-func _build_collection_window() -> void:
-	if collection_window != null:
+# 图鉴已并入水族馆：作为缸内「图鉴」子标签的内容，铺在场景区里。
+func _build_catalog_view() -> void:
+	if catalog_view != null:
 		return
-	var card := UICard.new()
-	card.configure("钓获图鉴", Vector2i(420, 388))
-	add_child(card)
-	collection_window = card
+	var panel := PanelContainer.new()
+	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	panel.add_theme_stylebox_override("panel", UITheme.card_style())
+	panel.visible = false
+	scene_area.add_child(panel)
+	catalog_view = panel
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 16)
+	margin.add_theme_constant_override("margin_right", 16)
+	margin.add_theme_constant_override("margin_top", 14)
+	margin.add_theme_constant_override("margin_bottom", 14)
+	panel.add_child(margin)
 
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	card.body.add_child(scroll)
+	margin.add_child(scroll)
 
 	collection_list = VBoxContainer.new()
 	collection_list.add_theme_constant_override("separation", 4)
@@ -358,9 +429,10 @@ func _build_help_window() -> void:
 		"点击池塘水面，或按“甩杆”，开始一次专注。",
 		"专注和休息时间可以在左侧直接调整，开始后会锁定。",
 		"专注完成会自动钓获奖励，并进入休息倒计时。",
-		"写下今日任务，完成任务会让右侧的小树成长。",
+		"写下今日任务，完成任务会让森林里多长一棵树。",
 		"任务多时点“展开”，打开完整代办清单。",
-		"点“图鉴”查看钓到过的鱼和收集进度。"
+		"切到“水族馆”，钓到的鱼会在缸里游；点缸内“图鉴”看收集进度。",
+		"点“档案”查看累计成长，并布置水缸里解锁的装饰。"
 	]
 	for tip in tips:
 		var label := Label.new()
@@ -368,6 +440,138 @@ func _build_help_window() -> void:
 		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		label.add_theme_color_override("font_color", UITheme.INK_SOFT)
 		card.body.add_child(label)
+
+func _open_ledger_window() -> void:
+	if ledger_window == null:
+		_build_ledger_window()
+	_render_ledger()
+	ledger_window.popup_centered()
+
+func _build_ledger_window() -> void:
+	if ledger_window != null:
+		return
+	var card := UICard.new()
+	card.configure("成长档案", Vector2i(360, 440))
+	add_child(card)
+	ledger_window = card
+
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	card.body.add_child(scroll)
+
+	ledger_body = VBoxContainer.new()
+	ledger_body.add_theme_constant_override("separation", 8)
+	ledger_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(ledger_body)
+
+func _render_ledger() -> void:
+	if ledger_body == null:
+		return
+	for child in ledger_body.get_children():
+		child.queue_free()
+
+	# —— 累计成长（只增不减）——
+	var caught_species := 0
+	for value in fishing_manager.get_fish_count().values():
+		if int(value) > 0:
+			caught_species += 1
+	var total_species := fishing_manager.get_fish_data().size()
+	var stat_lines := [
+		"累计专注  %d 次" % int(save_data.get("total_focus_sessions", 0)),
+		"累计完成  %d 个任务" % int(save_data.get("total_tasks_completed", 0)),
+		"活跃天数  %d 天" % int(save_data.get("active_days", 1)),
+		"已集鱼种  %d / %d" % [caught_species, total_species],
+	]
+	for line in stat_lines:
+		var label := Label.new()
+		label.text = line
+		label.add_theme_font_size_override("font_size", 15)
+		label.add_theme_color_override("font_color", UITheme.INK)
+		ledger_body.add_child(label)
+
+	var note := Label.new()
+	note.text = "这些只会往上走，漏了哪天也不会清零。"
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	note.add_theme_font_size_override("font_size", 12)
+	note.add_theme_color_override("font_color", UITheme.INK_FAINT)
+	ledger_body.add_child(note)
+
+	var sep := HSeparator.new()
+	ledger_body.add_child(sep)
+
+	# —— 水缸布置 ——
+	var decor_title := Label.new()
+	decor_title.text = "水缸布置"
+	decor_title.add_theme_font_size_override("font_size", 15)
+	decor_title.add_theme_color_override("font_color", UITheme.INK)
+	ledger_body.add_child(decor_title)
+
+	var stats := {
+		"total_sessions": int(save_data.get("total_focus_sessions", 0)),
+		"fish_counts": fishing_manager.get_fish_count()
+	}
+	var prefs: Dictionary = save_data.get("aquarium_decor", {})
+	for decor in AquariumView.DECOR:
+		var decor_id := String(decor["id"])
+		var unlocked := AquariumView.decor_unlocked(decor, stats)
+		var pref: Dictionary = prefs.get(decor_id, {})
+
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		ledger_body.add_child(row)
+
+		var name_label := Label.new()
+		name_label.text = String(decor["name"])
+		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		name_label.add_theme_color_override("font_color", UITheme.INK if unlocked else UITheme.INK_FAINT)
+		row.add_child(name_label)
+
+		if not unlocked:
+			var lock_label := Label.new()
+			lock_label.text = "未解锁 · %s" % String(decor.get("unlock_label", ""))
+			lock_label.add_theme_font_size_override("font_size", 12)
+			lock_label.add_theme_color_override("font_color", UITheme.INK_FAINT)
+			row.add_child(lock_label)
+			continue
+
+		var on := bool(pref.get("on", true))
+		var toggle_button := Button.new()
+		toggle_button.text = "显示" if on else "隐藏"
+		toggle_button.focus_mode = Control.FOCUS_NONE
+		UITheme.style_chrome(toggle_button)
+		toggle_button.pressed.connect(_on_decor_toggle.bind(decor_id))
+		row.add_child(toggle_button)
+
+		var slot_button := Button.new()
+		slot_button.text = "换位"
+		slot_button.focus_mode = Control.FOCUS_NONE
+		slot_button.tooltip_text = "在左 / 中 / 右之间切换"
+		UITheme.style_chrome(slot_button)
+		slot_button.pressed.connect(_on_decor_move.bind(decor_id))
+		row.add_child(slot_button)
+
+func _decor_pref(decor_id: String) -> Dictionary:
+	var prefs: Dictionary = save_data.get("aquarium_decor", {})
+	var pref: Dictionary = prefs.get(decor_id, {"on": true, "slot": 0})
+	prefs[decor_id] = pref
+	save_data["aquarium_decor"] = prefs
+	return pref
+
+func _on_decor_toggle(decor_id: String) -> void:
+	var pref := _decor_pref(decor_id)
+	pref["on"] = not bool(pref.get("on", true))
+	_save_now()
+	_refresh_aquarium()
+	_render_ledger()
+
+func _on_decor_move(decor_id: String) -> void:
+	var pref := _decor_pref(decor_id)
+	pref["slot"] = (int(pref.get("slot", 0)) + 1) % AquariumView.DECOR_SLOTS.size()
+	_save_now()
+	_refresh_aquarium()
+	_render_ledger()
 
 func _render_collection() -> void:
 	if collection_list == null or fishing_manager == null:
@@ -412,6 +616,15 @@ func _render_collection() -> void:
 		description_label.add_theme_font_size_override("font_size", 12)
 		description_label.add_theme_color_override("font_color", UITheme.INK_SOFT if count > 0 else UITheme.INK_FAINT)
 		row.add_child(description_label)
+
+		var first := String((save_data.get("first_caught", {}) as Dictionary).get(fish_id, ""))
+		if count > 0 and first != "":
+			var first_label := Label.new()
+			first_label.text = "首次钓获 %s" % first
+			first_label.add_theme_font_size_override("font_size", 11)
+			first_label.add_theme_color_override("font_color", UITheme.INK_FAINT)
+			row.add_child(first_label)
+			row.custom_minimum_size = Vector2(0, 68)
 
 func _rarity_name(rarity: String) -> String:
 	match rarity:

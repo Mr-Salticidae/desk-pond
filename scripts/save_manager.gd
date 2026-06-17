@@ -24,6 +24,14 @@ func get_default_save() -> Dictionary:
 		"pomodoro_completed": 0,
 		"total_focus_sessions": 0,
 		"tasks_completed": 0,
+		"total_tasks_completed": 0,
+		"active_days": 1,
+		"first_caught": {},
+		"aquarium_decor": {
+			"coral": {"on": true, "slot": 0},
+			"shipwreck": {"on": true, "slot": 1},
+			"chest": {"on": true, "slot": 2}
+		},
 		"tree_growth_points": 0,
 		"tree_stage": 0,
 		"tasks": [],
@@ -55,6 +63,8 @@ func check_new_day(data: Dictionary) -> Dictionary:
 		data["date"] = today
 		data["pomodoro_completed"] = 0
 		data["tasks_completed"] = 0
+		# 活跃天数：只增不减的计数（非连胜，漏天不清零）
+		data["active_days"] = int(data.get("active_days", 1)) + 1
 	return data
 
 func current_datetime() -> String:
