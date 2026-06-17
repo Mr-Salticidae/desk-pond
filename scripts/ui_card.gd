@@ -81,12 +81,27 @@ func _on_header_input(event: InputEvent) -> void:
 	elif event is InputEventMouseMotion and _dragging:
 		position = _clamp_to_screen(position + Vector2i(event.relative))
 
-# 把窗口约束在所在屏幕的可用区域内，避免被拖出屏幕后再也找不回来
-# （尤其是 exclusive 弹窗，拖丢后会阻塞主窗口，只能从任务管理器结束）。
+# 约束拖动位置，避免弹窗被拖丢后再也找不回来（exclusive 弹窗拖丢会阻塞主窗口）。
+# 弹窗默认是嵌入主窗口的子窗口，position 相对父视口——必须约束在父窗口可见区内，
+# 而不是屏幕坐标（否则副屏在左/上时合并矩形起点为负，反而能把弹窗拖出主窗口）。
 func _clamp_to_screen(pos: Vector2i) -> Vector2i:
-	var area := DisplayServer.screen_get_usable_rect(current_screen)
+	if is_embedded():
+		var parent := get_parent()
+		if parent != null:
+			var limit := parent.get_viewport().get_visible_rect().size
+			pos.x = clampi(pos.x, 0, maxi(0, int(limit.x) - size.x))
+			pos.y = clampi(pos.y, 0, maxi(0, int(limit.y) - size.y))
+			return pos
+	# 独立原生窗口：约束在整个虚拟桌面（所有屏幕合并）范围内，可跨屏不卡边。
+	var area := _virtual_usable_rect()
 	var max_x := area.position.x + area.size.x - size.x
 	var max_y := area.position.y + area.size.y - size.y
 	pos.x = clampi(pos.x, area.position.x, maxi(area.position.x, max_x))
 	pos.y = clampi(pos.y, area.position.y, maxi(area.position.y, max_y))
 	return pos
+
+func _virtual_usable_rect() -> Rect2i:
+	var rect := DisplayServer.screen_get_usable_rect(0)
+	for i in range(1, DisplayServer.get_screen_count()):
+		rect = rect.merge(DisplayServer.screen_get_usable_rect(i))
+	return rect

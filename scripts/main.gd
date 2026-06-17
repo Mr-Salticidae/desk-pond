@@ -360,15 +360,22 @@ func _on_title_bar_input(event: InputEvent) -> void:
 	elif event is InputEventMouseMotion and _dragging_window:
 		get_window().position = _clamp_window_to_screen(DisplayServer.mouse_get_position() - _drag_anchor)
 
-# 把主窗口约束在所在屏幕的可用区域内，避免被拖出屏幕后再也找不回来。
+# 把主窗口约束在整个虚拟桌面（所有屏幕合并）范围内：既不会被拖出桌面外丢失，
+# 又能在多显示器之间自由拖动，不会卡在屏幕交界处。
 func _clamp_window_to_screen(pos: Vector2i) -> Vector2i:
 	var win := get_window()
-	var area := DisplayServer.screen_get_usable_rect(win.current_screen)
+	var area := _virtual_usable_rect()
 	var max_x := area.position.x + area.size.x - win.size.x
 	var max_y := area.position.y + area.size.y - win.size.y
 	pos.x = clampi(pos.x, area.position.x, maxi(area.position.x, max_x))
 	pos.y = clampi(pos.y, area.position.y, maxi(area.position.y, max_y))
 	return pos
+
+func _virtual_usable_rect() -> Rect2i:
+	var rect := DisplayServer.screen_get_usable_rect(0)
+	for i in range(1, DisplayServer.get_screen_count()):
+		rect = rect.merge(DisplayServer.screen_get_usable_rect(i))
+	return rect
 
 func _on_minimize_pressed() -> void:
 	get_window().mode = Window.MODE_MINIMIZED
