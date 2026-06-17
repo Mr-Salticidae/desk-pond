@@ -79,4 +79,14 @@ func _on_header_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		_dragging = event.pressed
 	elif event is InputEventMouseMotion and _dragging:
-		position += Vector2i(event.relative)
+		position = _clamp_to_screen(position + Vector2i(event.relative))
+
+# 把窗口约束在所在屏幕的可用区域内，避免被拖出屏幕后再也找不回来
+# （尤其是 exclusive 弹窗，拖丢后会阻塞主窗口，只能从任务管理器结束）。
+func _clamp_to_screen(pos: Vector2i) -> Vector2i:
+	var area := DisplayServer.screen_get_usable_rect(current_screen)
+	var max_x := area.position.x + area.size.x - size.x
+	var max_y := area.position.y + area.size.y - size.y
+	pos.x = clampi(pos.x, area.position.x, maxi(area.position.x, max_x))
+	pos.y = clampi(pos.y, area.position.y, maxi(area.position.y, max_y))
+	return pos
