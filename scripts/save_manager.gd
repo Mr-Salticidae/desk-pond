@@ -21,6 +21,7 @@ func save_game(data: Dictionary) -> void:
 func get_default_save() -> Dictionary:
 	return {
 		"date": _today(),
+		"seen_intro": false,
 		"pomodoro_completed": 0,
 		"total_focus_sessions": 0,
 		"tasks_completed": 0,
@@ -52,7 +53,7 @@ func get_default_save() -> Dictionary:
 			"always_on_top": false,
 			"focus_minutes": 25,
 			"break_minutes": 5,
-			"sound_enabled": true
+			"muted": false
 		}
 	}
 

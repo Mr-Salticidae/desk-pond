@@ -18,6 +18,7 @@ var task_panel: TaskManager
 var reward_popup: RewardPopup
 var stats_label: Label
 var always_on_top_button: Button
+var mute_button: Button
 var catalog_view: Control
 var collection_list: VBoxContainer
 var help_window: Window
@@ -46,6 +47,15 @@ func _ready() -> void:
 	_build_ui()
 	_setup_modules()
 	_apply_window_settings()
+	_maybe_show_intro()
+
+# 第一次打开时自动弹一次玩法说明，之后不再打扰。
+func _maybe_show_intro() -> void:
+	if bool(save_data.get("seen_intro", false)):
+		return
+	save_data["seen_intro"] = true
+	_save_now()
+	call_deferred("_open_help_window")
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
@@ -116,6 +126,17 @@ func _build_ui() -> void:
 	UITheme.style_chrome(help_button)
 	help_button.pressed.connect(_open_help_window)
 	top_bar.add_child(help_button)
+
+	mute_button = Button.new()
+	mute_button.toggle_mode = true
+	mute_button.focus_mode = Control.FOCUS_NONE
+	mute_button.tooltip_text = "开关声音"
+	UITheme.style_chrome(mute_button)
+	var start_muted := bool(save_data["settings"].get("muted", false))
+	mute_button.set_pressed_no_signal(start_muted)
+	mute_button.text = "静" if start_muted else "声"
+	mute_button.toggled.connect(_on_mute_toggled)
+	top_bar.add_child(mute_button)
 
 	always_on_top_button = Button.new()
 	always_on_top_button.text = "置顶"
@@ -205,6 +226,8 @@ func _setup_modules() -> void:
 	pomodoro_panel.setup(save_data.get("settings", {}))
 	task_panel.setup(save_data.get("tasks", []), int(save_data.get("tasks_completed", 0)), save_manager)
 
+	Audio.init_muted(bool(save_data["settings"].get("muted", false)))
+
 	pomodoro_panel.focus_completed.connect(_on_focus_completed)
 	pomodoro_panel.state_changed.connect(_on_timer_state_changed)
 	pomodoro_panel.settings_changed.connect(_on_timer_settings_changed)
@@ -229,6 +252,8 @@ func _on_focus_completed() -> void:
 	_record_first_caught(String(fish.get("id", "")))
 	pixel_world.play_focus_feedback()
 	reward_popup.show_reward(fish)
+	Audio.play_chime()
+	get_tree().create_timer(0.28).timeout.connect(Audio.play_catch, CONNECT_ONE_SHOT)
 	_render_collection()
 	_refresh_aquarium()
 	_save_now()
@@ -242,6 +267,7 @@ func _record_first_caught(fish_id: String) -> void:
 		save_data["first_caught"] = first
 
 func _on_task_completed(_task: Dictionary) -> void:
+	Audio.play_task_done()
 	tree_manager.add_growth_point(1)
 	save_data["tree_growth_points"] = tree_manager.growth_points
 	save_data["tree_stage"] = tree_manager.pond_tree_stage()
@@ -332,6 +358,8 @@ func _refresh_aquarium() -> void:
 	})
 
 func _on_timer_state_changed(state: String) -> void:
+	if state == "focusing":
+		Audio.play_cast()
 	if pixel_world:
 		pixel_world.set_activity_state(state)
 
@@ -343,6 +371,12 @@ func _on_timer_settings_changed(settings: Dictionary) -> void:
 func _on_cast_requested() -> void:
 	if pomodoro_panel:
 		pomodoro_panel.start_focus()
+
+func _on_mute_toggled(muted: bool) -> void:
+	mute_button.text = "静" if muted else "声"
+	save_data["settings"]["muted"] = muted
+	Audio.set_muted(muted)
+	_save_now()
 
 func _on_always_on_top_toggled(enabled: bool) -> void:
 	save_data["settings"]["always_on_top"] = enabled
