@@ -8,6 +8,7 @@ const PomodoroPanelScene = preload("res://scenes/PomodoroPanel.tscn")
 const TaskPanelScene = preload("res://scenes/TaskPanel.tscn")
 const ICON_SPEAKER_ON := preload("res://assets/speaker_on.png")
 const ICON_SPEAKER_OFF := preload("res://assets/speaker_off.png")
+const ICON_PIN := preload("res://assets/pin.png")
 
 var save_manager: SaveManager
 var fishing_manager: FishingManager
@@ -144,12 +145,14 @@ func _build_ui() -> void:
 	top_bar.add_child(mute_button)
 
 	always_on_top_button = Button.new()
-	always_on_top_button.text = "置顶"
 	always_on_top_button.toggle_mode = true
 	always_on_top_button.focus_mode = Control.FOCUS_NONE
 	always_on_top_button.tooltip_text = "窗口置顶"
 	UITheme.style_chrome(always_on_top_button)
-	always_on_top_button.set_pressed_no_signal(bool(save_data["settings"].get("always_on_top", false)))
+	always_on_top_button.icon = ICON_PIN
+	var start_pinned := bool(save_data["settings"].get("always_on_top", false))
+	always_on_top_button.set_pressed_no_signal(start_pinned)
+	_update_pin_color(start_pinned)
 	always_on_top_button.toggled.connect(_on_always_on_top_toggled)
 	top_bar.add_child(always_on_top_button)
 
@@ -388,9 +391,19 @@ func _update_mute_icon(muted: bool) -> void:
 		mute_button.icon = ICON_SPEAKER_OFF if muted else ICON_SPEAKER_ON
 
 func _on_always_on_top_toggled(enabled: bool) -> void:
+	_update_pin_color(enabled)
 	save_data["settings"]["always_on_top"] = enabled
 	_apply_window_settings()
 	_save_now()
+
+# 置顶用颜色区分：未置顶=浅色（与其它图标一致），已置顶=陶土暖色（点亮）
+func _update_pin_color(pinned: bool) -> void:
+	if always_on_top_button == null:
+		return
+	var col := UITheme.ACCENT if pinned else UITheme.INK_ON_CHROME
+	always_on_top_button.add_theme_color_override("icon_normal_color", col)
+	always_on_top_button.add_theme_color_override("icon_hover_color", col)
+	always_on_top_button.add_theme_color_override("icon_pressed_color", col)
 
 func _apply_window_settings() -> void:
 	get_window().always_on_top = bool(save_data["settings"].get("always_on_top", false))
