@@ -6,6 +6,8 @@ const TreeManagerScript = preload("res://scripts/tree_manager.gd")
 const PixelWorldScene = preload("res://scenes/PixelWorld.tscn")
 const PomodoroPanelScene = preload("res://scenes/PomodoroPanel.tscn")
 const TaskPanelScene = preload("res://scenes/TaskPanel.tscn")
+const ICON_SPEAKER_ON := preload("res://assets/speaker_on.png")
+const ICON_SPEAKER_OFF := preload("res://assets/speaker_off.png")
 
 var save_manager: SaveManager
 var fishing_manager: FishingManager
@@ -132,9 +134,12 @@ func _build_ui() -> void:
 	mute_button.focus_mode = Control.FOCUS_NONE
 	mute_button.tooltip_text = "开关声音"
 	UITheme.style_chrome(mute_button)
+	mute_button.add_theme_color_override("icon_normal_color", UITheme.INK_ON_CHROME)
+	mute_button.add_theme_color_override("icon_hover_color", UITheme.INK_ON_CHROME)
+	mute_button.add_theme_color_override("icon_pressed_color", UITheme.INK_ON_CHROME)
 	var start_muted := bool(save_data["settings"].get("muted", false))
 	mute_button.set_pressed_no_signal(start_muted)
-	mute_button.text = "静" if start_muted else "声"
+	_update_mute_icon(start_muted)
 	mute_button.toggled.connect(_on_mute_toggled)
 	top_bar.add_child(mute_button)
 
@@ -373,10 +378,14 @@ func _on_cast_requested() -> void:
 		pomodoro_panel.start_focus()
 
 func _on_mute_toggled(muted: bool) -> void:
-	mute_button.text = "静" if muted else "声"
+	_update_mute_icon(muted)
 	save_data["settings"]["muted"] = muted
 	Audio.set_muted(muted)
 	_save_now()
+
+func _update_mute_icon(muted: bool) -> void:
+	if mute_button:
+		mute_button.icon = ICON_SPEAKER_OFF if muted else ICON_SPEAKER_ON
 
 func _on_always_on_top_toggled(enabled: bool) -> void:
 	save_data["settings"]["always_on_top"] = enabled
