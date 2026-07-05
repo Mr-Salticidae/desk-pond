@@ -17,6 +17,7 @@
 
 - Windows：`godot --headless --path . --export-release "Windows Desktop" build/DeskPond.exe`
 - Web（手机版，线程禁用保 webview 兼容）：`godot --headless --path . --export-release Web build/web/index.html`
+  - 传 B站 toy 需再跑 `make_toy_package.ps1`：toy 托管会吞 `.pck` 文件，脚本将其改名 `.data` 并给 index.html 打 mainPack 补丁后重新打 zip
 - macOS（Windows 上交叉导出，自动 ad-hoc 签名）：`godot --headless --path . --export-release macOS build/DeskPond-macOS.zip`
 
 导出目录需先手动创建；Web 与 macOS 的适配差异细节见本地 `promo/` 目录下的发布说明（营销物料不入库）。
