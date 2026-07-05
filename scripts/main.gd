@@ -41,8 +41,15 @@ var aquarium_submode := "tank"
 var _dragging_window: bool = false
 var _drag_anchor: Vector2i = Vector2i.ZERO
 
+# Web 版（B站 toy / 手机浏览器）：竖屏布局，去掉桌面窗口专属功能。
+var is_web := OS.has_feature("web")
+const WEB_DESIGN_SIZE := Vector2i(400, 720)
+
 func _ready() -> void:
-	get_window().min_size = Vector2i(640, 520)
+	if is_web:
+		get_window().content_scale_size = WEB_DESIGN_SIZE
+	else:
+		get_window().min_size = Vector2i(640, 520)
 	save_manager = SaveManagerScript.new()
 	fishing_manager = FishingManagerScript.new()
 	tree_manager = TreeManagerScript.new()
@@ -79,9 +86,10 @@ func _build_ui() -> void:
 	var top_bar_panel := PanelContainer.new()
 	top_bar_panel.custom_minimum_size = Vector2(0, 36)
 	top_bar_panel.add_theme_stylebox_override("panel", UITheme.chrome_bar_style())
-	top_bar_panel.gui_input.connect(_on_title_bar_input)
-	top_bar_panel.mouse_default_cursor_shape = Control.CURSOR_MOVE
-	top_bar_panel.tooltip_text = "拖动可移动窗口"
+	if not is_web:
+		top_bar_panel.gui_input.connect(_on_title_bar_input)
+		top_bar_panel.mouse_default_cursor_shape = Control.CURSOR_MOVE
+		top_bar_panel.tooltip_text = "拖动可移动窗口"
 	root.add_child(top_bar_panel)
 
 	var top_bar := HBoxContainer.new()
@@ -113,6 +121,8 @@ func _build_ui() -> void:
 	stats_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stats_label.add_theme_font_size_override("font_size", 13)
 	stats_label.add_theme_color_override("font_color", Color(0.878, 0.902, 0.855, 0.66))
+	# 竖屏顶栏放不下统计文字，数字都能在「档案」里看到
+	stats_label.visible = not is_web
 	top_bar.add_child(stats_label)
 
 	var ledger_button := Button.new()
@@ -142,35 +152,37 @@ func _build_ui() -> void:
 	mute_button.toggled.connect(_on_mute_toggled)
 	top_bar.add_child(mute_button)
 
-	always_on_top_button = Button.new()
-	always_on_top_button.toggle_mode = true
-	always_on_top_button.focus_mode = Control.FOCUS_NONE
-	always_on_top_button.tooltip_text = "窗口置顶"
-	UITheme.style_chrome(always_on_top_button)
-	var start_pinned := bool(save_data["settings"].get("always_on_top", false))
-	always_on_top_button.set_pressed_no_signal(start_pinned)
-	_update_pin_icon(start_pinned)
-	always_on_top_button.toggled.connect(_on_always_on_top_toggled)
-	top_bar.add_child(always_on_top_button)
+	# 置顶 / 最小化 / 关闭都是桌面窗口概念，Web 里没有意义
+	if not is_web:
+		always_on_top_button = Button.new()
+		always_on_top_button.toggle_mode = true
+		always_on_top_button.focus_mode = Control.FOCUS_NONE
+		always_on_top_button.tooltip_text = "窗口置顶"
+		UITheme.style_chrome(always_on_top_button)
+		var start_pinned := bool(save_data["settings"].get("always_on_top", false))
+		always_on_top_button.set_pressed_no_signal(start_pinned)
+		_update_pin_icon(start_pinned)
+		always_on_top_button.toggled.connect(_on_always_on_top_toggled)
+		top_bar.add_child(always_on_top_button)
 
-	var minimize_button := Button.new()
-	minimize_button.text = "—"
-	minimize_button.focus_mode = Control.FOCUS_NONE
-	minimize_button.tooltip_text = "最小化"
-	UITheme.style_chrome(minimize_button)
-	minimize_button.pressed.connect(_on_minimize_pressed)
-	top_bar.add_child(minimize_button)
+		var minimize_button := Button.new()
+		minimize_button.text = "—"
+		minimize_button.focus_mode = Control.FOCUS_NONE
+		minimize_button.tooltip_text = "最小化"
+		UITheme.style_chrome(minimize_button)
+		minimize_button.pressed.connect(_on_minimize_pressed)
+		top_bar.add_child(minimize_button)
 
-	var close_button := Button.new()
-	close_button.text = "×"
-	close_button.focus_mode = Control.FOCUS_NONE
-	close_button.tooltip_text = "关闭"
-	UITheme.style_chrome(close_button, true)
-	close_button.pressed.connect(_on_close_pressed)
-	top_bar.add_child(close_button)
+		var close_button := Button.new()
+		close_button.text = "×"
+		close_button.focus_mode = Control.FOCUS_NONE
+		close_button.tooltip_text = "关闭"
+		UITheme.style_chrome(close_button, true)
+		close_button.pressed.connect(_on_close_pressed)
+		top_bar.add_child(close_button)
 
 	scene_area = Control.new()
-	scene_area.custom_minimum_size = Vector2(640, 200)
+	scene_area.custom_minimum_size = Vector2(0, 200) if is_web else Vector2(640, 200)
 	scene_area.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scene_area.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scene_area.clip_contents = true
@@ -201,18 +213,20 @@ func _build_ui() -> void:
 	bottom_margin.add_theme_constant_override("margin_bottom", 8)
 	root.add_child(bottom_margin)
 
-	var bottom := HBoxContainer.new()
+	# 桌面横排：钓竿 | 任务；Web 竖屏改为上下堆叠
+	var bottom := BoxContainer.new()
+	bottom.vertical = is_web
 	bottom.add_theme_constant_override("separation", 8)
 	bottom_margin.add_child(bottom)
 
 	pomodoro_panel = PomodoroPanelScene.instantiate()
-	pomodoro_panel.custom_minimum_size = Vector2(230, 0)
+	pomodoro_panel.custom_minimum_size = Vector2.ZERO if is_web else Vector2(230, 0)
 	pomodoro_panel.size_flags_horizontal = Control.SIZE_FILL
 	bottom.add_child(pomodoro_panel)
 
 	task_panel = TaskPanelScene.instantiate()
-	task_panel.custom_minimum_size = Vector2(390, 0)
-	task_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	task_panel.custom_minimum_size = Vector2.ZERO if is_web else Vector2(390, 0)
+	task_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL if not is_web else Control.SIZE_FILL
 	task_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	bottom.add_child(task_panel)
 
@@ -399,6 +413,8 @@ func _update_pin_icon(pinned: bool) -> void:
 		always_on_top_button.icon = ICON_PIN_ON if pinned else ICON_PIN_OFF
 
 func _apply_window_settings() -> void:
+	if is_web:
+		return
 	get_window().always_on_top = bool(save_data["settings"].get("always_on_top", false))
 
 func _on_title_bar_input(event: InputEvent) -> void:

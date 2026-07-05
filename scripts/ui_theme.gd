@@ -140,6 +140,10 @@ static func style_progress(bar: ProgressBar) -> void:
 static func make_theme() -> Theme:
 	var t := Theme.new()
 	t.default_font_size = 14
+	# Web 导出没有系统字体可回退，中文会整体缺字；
+	# 打包的缝合像素字体（OFL）只在 Web 上启用，桌面端保持系统字体的既有观感。
+	if OS.has_feature("web"):
+		t.default_font = load("res://assets/fonts/fusion-pixel-12px-proportional-zh_hans.otf.woff2")
 
 	# 文本
 	t.set_color("font_color", "Label", INK)

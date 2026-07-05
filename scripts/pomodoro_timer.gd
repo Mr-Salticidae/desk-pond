@@ -14,6 +14,10 @@ const MAX_BREAK_MINUTES = 60
 
 var state := "idle"
 var paused_from_state := "idle"
+# Web 上页面切后台会被浏览器整体冻结，逐秒递减会丢时间；
+# 记录截止时间戳，每次 tick 按真实时钟重算剩余秒数。桌面端保持原逻辑不变。
+var _wall_clock := OS.has_feature("web")
+var _deadline_unix := 0.0
 var focus_seconds := 25 * 60
 var break_seconds := 5 * 60
 var seconds_left := focus_seconds
@@ -50,6 +54,7 @@ func start_focus() -> void:
 	if state == "idle" or state == "completed":
 		seconds_left = focus_seconds
 		active_duration_seconds = focus_seconds
+	_deadline_unix = Time.get_unix_time_from_system() + seconds_left
 	_apply_state("focusing")
 	countdown_timer.start()
 
@@ -59,6 +64,7 @@ func pause_or_resume() -> void:
 		countdown_timer.stop()
 		_apply_state("paused")
 	elif state == "paused":
+		_deadline_unix = Time.get_unix_time_from_system() + seconds_left
 		_apply_state(paused_from_state)
 		countdown_timer.start()
 
@@ -72,7 +78,10 @@ func reset_timer() -> void:
 func _on_timeout() -> void:
 	if state != "focusing" and state != "break":
 		return
-	seconds_left -= 1
+	if _wall_clock:
+		seconds_left = maxi(0, int(ceil(_deadline_unix - Time.get_unix_time_from_system())))
+	else:
+		seconds_left -= 1
 	timer_tick.emit(seconds_left)
 	_update_time_label()
 	if seconds_left <= 0:
@@ -90,6 +99,7 @@ func _on_timeout() -> void:
 func _start_break() -> void:
 	seconds_left = break_seconds
 	active_duration_seconds = break_seconds
+	_deadline_unix = Time.get_unix_time_from_system() + seconds_left
 	_apply_state("break")
 	_update_time_label()
 	countdown_timer.start()

@@ -8,6 +8,19 @@
 
 前往 [Releases 页面](https://github.com/Mr-Salticidae/desk-pond/releases/latest) 下载最新的 **DeskPond-v*.exe**（文件名带版本号），双击即可运行，无需安装（单文件已内置全部资源）。
 
+### 其他平台
+
+- **macOS**：下载 **DeskPond-macOS-v*.zip**，双击解压后打开。因未做 Apple 公证，首次打开需在「系统设置 → 隐私与安全性」底部点「仍要打开」放行一次（Universal 双架构，Apple Silicon / Intel 通用）。
+- **手机 / 网页版**：Web 导出（竖屏布局适配），通过 B站 toy 托管发布，入口见发布动态。
+
+## 从源码导出
+
+- Windows：`godot --headless --path . --export-release "Windows Desktop" build/DeskPond.exe`
+- Web（手机版，线程禁用保 webview 兼容）：`godot --headless --path . --export-release Web build/web/index.html`
+- macOS（Windows 上交叉导出，自动 ad-hoc 签名）：`godot --headless --path . --export-release macOS build/DeskPond-macOS.zip`
+
+导出目录需先手动创建；Web 与 macOS 的适配差异细节见本地 `promo/` 目录下的发布说明（营销物料不入库）。
+
 ## 当前功能
 
 - 可配置专注/休息时长的番茄钟。
