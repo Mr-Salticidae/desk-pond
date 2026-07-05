@@ -160,6 +160,7 @@ func _build_ui() -> void:
 	_apply_input_theme(task_input)
 	task_input.text_submitted.connect(func(text: String): add_task(text))
 	input_row.add_child(task_input)
+	WebInput.attach("task", task_input)
 
 	var add_button := Button.new()
 	add_button.text = "播种"
@@ -305,6 +306,7 @@ func _build_edit_window() -> void:
 	_apply_input_theme(edit_input)
 	edit_input.text_submitted.connect(func(_text: String): _save_edit_window())
 	card.body.add_child(edit_input)
+	WebInput.attach("task_edit", edit_input)
 
 	var buttons := HBoxContainer.new()
 	buttons.alignment = BoxContainer.ALIGNMENT_END
@@ -356,6 +358,7 @@ func _build_full_task_window() -> void:
 	_apply_input_theme(full_task_input)
 	full_task_input.text_submitted.connect(func(text: String): add_task(text))
 	input_row.add_child(full_task_input)
+	WebInput.attach("task_full", full_task_input)
 
 	var add_button := Button.new()
 	add_button.text = "播种"

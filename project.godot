@@ -23,6 +23,7 @@ config/icon="res://assets/icon.png"
 [autoload]
 
 Audio="*res://scripts/audio_manager.gd"
+WebInput="*res://scripts/web_text_input.gd"
 
 [display]
 
