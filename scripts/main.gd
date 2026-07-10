@@ -34,6 +34,7 @@ var forest_view: ForestView
 var aquarium_view: AquariumView
 var current_room := "pond"
 var room_tabs: Dictionary = {}
+var aqua_subtab_panel: PanelContainer
 var aqua_subtab_bar: HBoxContainer
 var aqua_subtabs: Dictionary = {}
 var aquarium_submode := "tank"
@@ -102,25 +103,22 @@ func _build_ui() -> void:
 	_make_room_tab("森林", "forest", room_group, top_bar)
 	_make_room_tab("水族馆", "aquarium", room_group, top_bar)
 
-	# 水族馆内的子标签：鱼缸 / 图鉴（仅在水族馆房间显示）
-	aqua_subtab_bar = HBoxContainer.new()
-	aqua_subtab_bar.add_theme_constant_override("separation", 4)
-	aqua_subtab_bar.visible = false
-	top_bar.add_child(aqua_subtab_bar)
-	var sub_group := ButtonGroup.new()
-	_make_aqua_subtab("鱼缸", "tank", sub_group, aqua_subtab_bar)
-	_make_aqua_subtab("图鉴", "catalog", sub_group, aqua_subtab_bar)
-	aqua_subtabs["tank"].set_pressed_no_signal(true)
-
 	var spacer := Control.new()
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# 桌面端由 stats_label 充当弹性间隔；Web 上统计隐藏，才需要这个占位
+	spacer.visible = is_web
 	top_bar.add_child(spacer)
 
 	stats_label = Label.new()
 	stats_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stats_label.add_theme_font_size_override("font_size", 13)
 	stats_label.add_theme_color_override("font_color", Color(0.878, 0.902, 0.855, 0.66))
+	# 统计文字同时是顶栏的弹性区：空间不足时先压缩它，
+	# 绝不把右侧的最小化 / 关闭按钮挤出窗口
+	stats_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	stats_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	stats_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	# 竖屏顶栏放不下统计文字，数字都能在「档案」里看到
 	stats_label.visible = not is_web
 	top_bar.add_child(stats_label)
@@ -203,6 +201,24 @@ func _build_ui() -> void:
 	scene_area.add_child(aquarium_view)
 
 	_build_catalog_view()
+
+	# 水族馆内的子标签：鱼缸 / 图鉴。悬浮在场景区右上角，
+	# 不占顶栏——顶栏一旦放不下，会把最右侧的窗口按钮挤出屏幕。
+	aqua_subtab_panel = PanelContainer.new()
+	aqua_subtab_panel.add_theme_stylebox_override("panel", UITheme.chrome_bar_style())
+	aqua_subtab_panel.visible = false
+	aqua_subtab_panel.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT, Control.PRESET_MODE_MINSIZE, 10)
+	aqua_subtab_panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	aqua_subtab_panel.grow_vertical = Control.GROW_DIRECTION_END
+	scene_area.add_child(aqua_subtab_panel)
+
+	aqua_subtab_bar = HBoxContainer.new()
+	aqua_subtab_bar.add_theme_constant_override("separation", 4)
+	aqua_subtab_panel.add_child(aqua_subtab_bar)
+	var sub_group := ButtonGroup.new()
+	_make_aqua_subtab("鱼缸", "tank", sub_group, aqua_subtab_bar)
+	_make_aqua_subtab("图鉴", "catalog", sub_group, aqua_subtab_bar)
+	aqua_subtabs["tank"].set_pressed_no_signal(true)
 
 	var bottom_margin := MarginContainer.new()
 	bottom_margin.custom_minimum_size = Vector2(0, 280)
@@ -346,8 +362,8 @@ func _switch_room(room: String) -> void:
 		if room == "forest":
 			forest_view.update_forest(tree_manager)
 	var in_aqua := room == "aquarium"
-	if aqua_subtab_bar:
-		aqua_subtab_bar.visible = in_aqua
+	if aqua_subtab_panel:
+		aqua_subtab_panel.visible = in_aqua
 	if in_aqua:
 		_set_aqua_submode(aquarium_submode)
 	else:
@@ -463,7 +479,8 @@ func _build_catalog_view() -> void:
 	var margin := MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 16)
 	margin.add_theme_constant_override("margin_right", 16)
-	margin.add_theme_constant_override("margin_top", 14)
+	# 上边距避开悬浮在场景区右上角的「鱼缸 / 图鉴」子标签条
+	margin.add_theme_constant_override("margin_top", 52)
 	margin.add_theme_constant_override("margin_bottom", 14)
 	panel.add_child(margin)
 

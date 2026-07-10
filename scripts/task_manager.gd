@@ -46,7 +46,7 @@ func add_task(title: String) -> void:
 		return
 	var now := save_manager.current_datetime() if save_manager else ""
 	var task := {
-		"id": "task_%d" % Time.get_ticks_msec(),
+		"id": _new_task_id(),
 		"title": clean_title,
 		"done": false,
 		"created_at": now,
@@ -61,6 +61,20 @@ func add_task(title: String) -> void:
 	_show_feedback("新的种子埋好了")
 	task_added.emit(task)
 	tasks_changed.emit(get_tasks())
+
+# 旧实现用 ticks_msec（自启动毫秒数）当 id，跨会话可能撞车导致
+# 勾选 / 删除找错任务。改为 unix 秒 + 随机后缀，并与现有任务查重。
+func _new_task_id() -> String:
+	for _attempt in range(100):
+		var id := "task_%d_%04d" % [int(Time.get_unix_time_from_system()), randi() % 10000]
+		var taken := false
+		for task in tasks:
+			if String(task.get("id", "")) == id:
+				taken = true
+				break
+		if not taken:
+			return id
+	return "task_%d_%d" % [int(Time.get_unix_time_from_system()), Time.get_ticks_usec()]
 
 func delete_task(task_id: String) -> void:
 	for i in range(tasks.size()):
@@ -111,8 +125,14 @@ func toggle_task(task_id: String, done: bool) -> void:
 			tasks[i] = task
 			if done and not was_done:
 				tasks_completed_today += 1
-				_show_feedback("完成任务，树获得 1 点成长")
-				task_completed.emit(task)
+				# 每个任务只在第一次完成时计成长，反复勾选刷不了树
+				if bool(task.get("rewarded", false)):
+					_show_feedback("任务完成")
+				else:
+					task["rewarded"] = true
+					tasks[i] = task
+					_show_feedback("完成任务，树获得 1 点成长")
+					task_completed.emit(task)
 			elif not done and was_done:
 				tasks_completed_today = max(tasks_completed_today - 1, 0)
 				_show_feedback("任务重新放回土里")

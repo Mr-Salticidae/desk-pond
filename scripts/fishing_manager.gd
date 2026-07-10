@@ -68,7 +68,10 @@ func roll_fish() -> Dictionary:
 		if roll <= cursor:
 			add_fish(String(fish.get("id", "")))
 			return fish
-	return fish_data[0]
+	# 兜底（所有权重为 0 时才会走到）：同样要计数，保持弹窗与图鉴一致
+	var fallback: Dictionary = fish_data[0]
+	add_fish(String(fallback.get("id", "")))
+	return fallback
 
 func add_fish(fish_id: String) -> void:
 	if fish_id == "":

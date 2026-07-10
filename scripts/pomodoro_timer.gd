@@ -51,6 +51,15 @@ func setup(settings: Dictionary) -> void:
 func start_focus() -> void:
 	if state == "focusing" or state == "break":
 		return
+	if state == "paused":
+		# 专注中暂停的：甩杆等同「继续」，保留已走的进度
+		if paused_from_state == "focusing":
+			pause_or_resume()
+			return
+		# 休息中暂停的：视为放弃休息，开启一次全新专注；
+		# 不能沿用剩余的休息秒数，否则几分钟就能白拿一次专注奖励
+		seconds_left = focus_seconds
+		active_duration_seconds = focus_seconds
 	if state == "idle" or state == "completed":
 		seconds_left = focus_seconds
 		active_duration_seconds = focus_seconds
@@ -93,6 +102,8 @@ func _on_timeout() -> void:
 		else:
 			break_completed.emit()
 			seconds_left = focus_seconds
+			# 同步基准时长，否则休息比专注长时，回到待机后进度条会残留一截
+			active_duration_seconds = focus_seconds
 			_apply_state("idle")
 			_update_time_label()
 

@@ -167,7 +167,9 @@ func _refresh_labels() -> void:
 			hint_label.text = "钓到的鱼都在这里，越钓越热闹"
 
 func _on_anim_tick() -> void:
-	tank_frame = fmod(tank_frame + 1.0, LOOP)
+	# 不对 LOOP 取模：鱼速与水草摆动系数不是整数倍周期，
+	# 回零会让全缸瞬移一下；帧数持续增长，需要循环的绘制各自取模。
+	tank_frame += 1.0
 	queue_redraw()
 
 func _water_rect() -> Rect2:
