@@ -4,63 +4,111 @@
     "name": "摸鱼鲫鱼",
     "rarity": "common",
     "description": "最常见的池塘居民，喜欢在日程缝隙里慢慢游。",
-    "weight": 40
+    "weight": 40,
+    "eco": {
+      "bioload": 2,
+      "trait_desc": "随遇而安：什么缸都住得惯"
+    }
   },
   {
     "id": "salted_fish",
     "name": "咸鱼",
     "rarity": "common",
     "description": "翻不翻身看心情，但今天它愿意陪你浮一会儿。",
-    "weight": 28
+    "weight": 28,
+    "eco": {
+      "bioload": 1,
+      "trait_desc": "躺平：耗氧很少"
+    }
   },
   {
     "id": "meeting_carp",
     "name": "会议鲤鱼",
     "rarity": "common",
     "description": "听过很多会议纪要，尾巴一甩就能翻出三条待办。",
-    "weight": 26
+    "weight": 26,
+    "eco": {
+      "bioload": 3,
+      "trait_desc": "会开得长：吃得多，排得也多"
+    }
   },
   {
     "id": "commute_sardine",
     "name": "通勤沙丁鱼",
     "rarity": "common",
     "description": "总是挤成一团，和早高峰一个表情。",
-    "weight": 22
+    "weight": 22,
+    "eco": {
+      "bioload": 1,
+      "trait": "school",
+      "trait_desc": "早高峰：同缸 5 条以上结成鱼群，美观 +8"
+    }
   },
   {
     "id": "keyboard_loach",
     "name": "键盘泥鳅",
     "rarity": "uncommon",
     "description": "在键缝里钻得飞快，敲完最后一行就溜走。",
-    "weight": 14
+    "weight": 14,
+    "eco": {
+      "bioload": 1,
+      "trait": "cleaner",
+      "trait_desc": "清道夫：每条让水质 +2"
+    }
   },
   {
     "id": "deadline_goldfish",
     "name": "截稿金鱼",
     "rarity": "uncommon",
     "description": "只在你真的坐下来推进事情时出现，鳞片像提醒事项一样闪。",
-    "weight": 12
+    "weight": 12,
+    "eco": {
+      "bioload": 3,
+      "trait_desc": "截稿前狂吃：给水质的负担较重"
+    }
   },
   {
     "id": "weekly_pufferfish",
     "name": "周报河豚",
     "rarity": "uncommon",
     "description": "一到周五就鼓成一团，写完才肯慢慢瘪下去。",
-    "weight": 8
+    "weight": 8,
+    "eco": {
+      "bioload": 2,
+      "trait": "likes",
+      "likes": [
+        "coral"
+      ],
+      "trait_desc": "认珊瑚：缸里有珊瑚时美观 +5"
+    }
   },
   {
     "id": "overtime_eel",
     "name": "加班鳗鱼",
     "rarity": "rare",
     "description": "夜色越深越精神。钓到它时，记得也给自己留点电量。",
-    "weight": 4
+    "weight": 4,
+    "eco": {
+      "bioload": 2,
+      "trait": "likes",
+      "likes": [
+        "shipwreck",
+        "castle",
+        "driftwood"
+      ],
+      "trait_desc": "夜猫子：有沉船 / 城堡 / 沉木可躲时美观 +5"
+    }
   },
   {
     "id": "drift_bottle",
     "name": "漂流瓶",
     "rarity": "rare",
     "description": "里面没有 KPI，只有一句来自未来自己的谢谢。",
-    "weight": 1
+    "weight": 1,
+    "eco": {
+      "bioload": 0,
+      "trait_desc": "不是鱼：不耗氧也不添乱"
+    }
   },
   {
     "id": "annual_koi",
@@ -68,7 +116,15 @@
     "rarity": "milestone",
     "description": "传说一年只浮现一次，见过的人那阵子都很顺。",
     "weight": 0,
-    "unlock": { "type": "total_sessions", "value": 25 }
+    "unlock": {
+      "type": "total_sessions",
+      "value": 25
+    },
+    "eco": {
+      "bioload": 3,
+      "trait": "lucky",
+      "trait_desc": "好运：生机 +10"
+    }
   },
   {
     "id": "slacking_legend",
@@ -76,6 +132,14 @@
     "rarity": "milestone",
     "description": "钓够六十次，它从池底慢慢浮上来，对你点了点头。",
     "weight": 0,
-    "unlock": { "type": "total_catches", "value": 60 }
+    "unlock": {
+      "type": "total_catches",
+      "value": 60
+    },
+    "eco": {
+      "bioload": 3,
+      "trait": "lucky",
+      "trait_desc": "神迹：生机 +10"
+    }
   }
 ]

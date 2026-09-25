@@ -5,6 +5,7 @@ var reward_label: Label
 var rarity_label: Label
 var description_label: Label
 var flavor_label: Label
+var extra_label: Label
 var confirm_button: Button
 
 var flavor_texts := [
@@ -16,11 +17,12 @@ var flavor_texts := [
 ]
 
 func _ready() -> void:
-	configure("钓获成功", Vector2i(360, 300))
+	configure("钓获成功", Vector2i(360, 340))
 	exclusive = true
 	_build_content()
 
-func show_reward(fish: Dictionary) -> void:
+# extras：生态缸带来的附加收获（贝壳、里程碑赠礼、新访客），每条一行
+func show_reward(fish: Dictionary, extras: Array = []) -> void:
 	if reward_label == null:
 		_build_content()
 	reward_label.text = "你钓到了「%s」" % String(fish.get("name", "神秘小鱼"))
@@ -28,6 +30,8 @@ func show_reward(fish: Dictionary) -> void:
 	rarity_label.add_theme_color_override("font_color", _rarity_color(String(fish.get("rarity", "common"))))
 	description_label.text = String(fish.get("description", "这条鱼还没有写进图鉴。"))
 	flavor_label.text = flavor_texts.pick_random()
+	extra_label.text = "\n".join(extras)
+	extra_label.visible = not extras.is_empty()
 	popup_centered()
 
 func _build_content() -> void:
@@ -51,6 +55,11 @@ func _build_content() -> void:
 	flavor_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	flavor_label.custom_minimum_size = Vector2(290, 0)
 	body.add_child(flavor_label)
+
+	extra_label = _centered_label(13, UITheme.POND)
+	extra_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	extra_label.custom_minimum_size = Vector2(300, 0)
+	body.add_child(extra_label)
 
 	confirm_button = Button.new()
 	confirm_button.text = "收进图鉴"
