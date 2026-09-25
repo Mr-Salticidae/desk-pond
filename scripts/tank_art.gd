@@ -674,6 +674,24 @@ static func draw_heart(ci: CanvasItem, c: Vector2, s: float, alpha: float) -> vo
 	_r(-2.0, 1.0, 4.0, 1.0, pink)
 	_r(-1.0, 2.0, 2.0, 1.0, pink)
 
+const STAR_ROWS := [
+	"....#....",
+	"...###...",
+	"#########",
+	".#######.",
+	"..#####..",
+	"..##.##..",
+	".##...##.",
+]
+
+# 像素星星（9×7），pos 为左上角，unit 为每格像素
+static func draw_star(ci: CanvasItem, pos: Vector2, unit: float, col: Color) -> void:
+	for y in range(STAR_ROWS.size()):
+		var row: String = STAR_ROWS[y]
+		for x in range(row.length()):
+			if row[x] == "#":
+				ci.draw_rect(Rect2(pos + Vector2(x, y) * unit, Vector2(unit, unit)), col)
+
 # 贝壳货币图标（扇贝），c 为中心
 static func draw_shell_icon(ci: CanvasItem, c: Vector2, s: float) -> void:
 	_begin(ci, c, s, false, Color(0, 0, 0, 0), 1.0)

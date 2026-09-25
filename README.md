@@ -34,7 +34,8 @@
 - 访客：布置出特定的缸（海螺壳、茂密水草、沉木 + 苔藓球……），专注完成时寄居蟹、小海马、六角恐龙等会游进来。
 - 鱼的互动：点水面喂鱼、点鱼看名字和等级；同种鱼钓得越多等级越高；缸里每天冒出珍珠泡泡，点一下收集贝壳。
 - 全屏：收起下方控制台，让场景占满窗口 / 手机整屏。
-- 成长档案，只增不减。
+- **分享**：一键生成生态缸卡片图（缸名、星级、鱼和访客，B站 App 内附二维码），分享 / 存相册 / 复制链接，不用再手动截图。朋友点开链接直接逛你的缸、帮你喂鱼，不需要账号或服务器；电脑版也能粘贴分享码去朋友家看看。
+- 成长档案，只增不减；应用开着跨过午夜也会自动换天（重置今日计数、结转未完成的任务）。
 - 轻量环境水声与事件音效，顶栏「声 / 静」一键开关。
 - 本地保存每日任务、番茄数、鱼类收藏、树成长、声音与窗口置顶设置。
 
@@ -52,8 +53,9 @@
 
 ```powershell
 & 'C:\Program Files (x86)\Steam\steamapps\common\Godot Engine\godot.windows.opt.tools.64.exe' --headless --path 'C:\工位池塘' --quit-after 2
-# 生态缸逻辑测试（全部通过时退出码 0）
+# 生态缸 / 分享码逻辑测试（全部通过时退出码 0）
 & 'C:\Program Files (x86)\Steam\steamapps\common\Godot Engine\godot.windows.opt.tools.64.exe' --headless --path 'C:\工位池塘' --script tests/test_eco.gd
+& 'C:\Program Files (x86)\Steam\steamapps\common\Godot Engine\godot.windows.opt.tools.64.exe' --headless --path 'C:\工位池塘' --script tests/test_share.gd
 # 在桌面上预览手机布局（390×844，模拟刘海与手势条）
 & 'C:\Program Files (x86)\Steam\steamapps\common\Godot Engine\godot.windows.opt.tools.64.exe' --path 'C:\工位池塘' -- --web-layout --web-size=390x844 --safe-area=44,0,34,0
 ```
@@ -68,4 +70,6 @@
 - 水族馆右上角：“鱼缸”看缸、“图鉴”看鱼和访客、“布置”摆放、“全屏”收起控制台。
 - 布置时：底部库存条点一下放进缸，拖动摆放，工具条“翻转 / 收回”。
 - 点缸左上角的星级查看生态报告（氧气、水质、美观、生机与建议）。
+- 水族馆右上角“分享”：给缸起名、生成卡片，分享 / 保存图片 / 复制链接；下方粘贴朋友的分享码或链接可以去他家看看。
+  - 电脑版分享默认给「分享码 + 说明」；把 `scripts/eco_share.gd` 里的 `SHARE_WEB_URL` 填成 B站 Toy 页面地址后，会改为可点开的链接。
 - 点“?”查看玩法说明。设计思路见 `docs/设计_生态缸.md`。

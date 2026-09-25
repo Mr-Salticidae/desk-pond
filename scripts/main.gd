@@ -47,6 +47,16 @@ var shells_button: Button
 var shop: TankShop
 var eco_report: EcoReport
 var eco_guide: UICard
+var share_card: ShareCard
+
+# 逛朋友的缸（打开分享链接 / 粘贴分享码）
+var visit_layer: Control
+var visit_box: VBoxContainer
+var visit_header: PanelContainer
+var visit_view: AquariumView
+var visit_title: Label
+var visit_sub: Label
+var _intro_pending := false
 
 # 全屏（收起底部控制台，让房间占满窗口 / 手机整屏）
 var root_box: VBoxContainer
@@ -88,7 +98,15 @@ func _ready() -> void:
 	_build_ui()
 	_setup_modules()
 	_apply_window_settings()
-	_maybe_show_intro()
+	_start_day_watch()
+	# 从朋友的分享链接进来：先带他逛朋友的缸，玩法说明等回到自己池塘再弹
+	var incoming := WebShell.take_incoming_code()
+	var friend := EcoShare.decode(incoming, eco) if incoming != "" else {}
+	if not friend.is_empty():
+		_intro_pending = true
+		call_deferred("_open_visit", friend)
+	else:
+		_maybe_show_intro()
 
 # 第一次打开时自动弹一次玩法说明，之后不再打扰。
 func _maybe_show_intro() -> void:
@@ -101,6 +119,32 @@ func _maybe_show_intro() -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
 		_save_now()
+	elif what == NOTIFICATION_APPLICATION_FOCUS_IN:
+		_check_day_rollover()
+
+# ================= 跨天 =================
+
+# 工位池塘常常整天开着：存档只在启动时判断换天，开过午夜就不会重置当日计数、
+# 不结转未完成的任务、活跃天数也不加。这里每分钟（以及切回窗口、专注 / 任务完成时）检查一次。
+func _start_day_watch() -> void:
+	var timer := Timer.new()
+	timer.wait_time = 60.0
+	timer.timeout.connect(_check_day_rollover)
+	add_child(timer)
+	timer.start()
+
+func _check_day_rollover() -> void:
+	if save_manager == null or task_panel == null:
+		return
+	if String(save_data.get("date", "")) == _today():
+		return
+	# 以面板里的实时任务为准再换天：结转未完成的、清掉已完成的
+	save_data["tasks"] = task_panel.get_tasks()
+	save_manager.check_new_day(save_data)
+	task_panel.setup(save_data.get("tasks", []), 0, save_manager)
+	_update_stats()
+	_refresh_aquarium()
+	_save_now()
 
 func _build_ui() -> void:
 	var bg := ColorRect.new()
@@ -258,6 +302,13 @@ func _build_ui() -> void:
 	_make_aqua_subtab("图鉴", "catalog", sub_group, aqua_subtab_bar)
 	_make_aqua_subtab("布置", "edit", sub_group, aqua_subtab_bar)
 	aqua_subtabs["edit"].tooltip_text = "摆放水草和装饰、逛商店"
+	var share_button := Button.new()
+	share_button.text = "分享"
+	share_button.focus_mode = Control.FOCUS_NONE
+	share_button.tooltip_text = "生成缸的卡片和链接，发给朋友来逛；也能去朋友家看看"
+	UITheme.style_chrome(share_button)
+	share_button.pressed.connect(_open_share)
+	aqua_subtab_bar.add_child(share_button)
 	aqua_full_button = Button.new()
 	aqua_full_button.text = "全屏"
 	aqua_full_button.focus_mode = Control.FOCUS_NONE
@@ -300,6 +351,7 @@ func _build_ui() -> void:
 	_build_help_window()
 	_build_ledger_window()
 	_build_eco_windows()
+	_build_visit_layer()
 
 	room_tabs["pond"].set_pressed_no_signal(true)
 	_switch_room("pond")
@@ -349,6 +401,7 @@ func _setup_modules() -> void:
 	_save_now()
 
 func _on_focus_completed() -> void:
+	_check_day_rollover()
 	save_data["pomodoro_completed"] = int(save_data.get("pomodoro_completed", 0)) + 1
 	save_data["total_focus_sessions"] = int(save_data.get("total_focus_sessions", 0)) + 1
 	var fish := fishing_manager.roll_reward({
@@ -1004,6 +1057,18 @@ func _build_eco_windows() -> void:
 	add_child(shop)
 	eco_report = EcoReport.new()
 	add_child(eco_report)
+	eco_report.share_requested.connect(func():
+		eco_report.hide()
+		_open_share()
+	)
+	share_card = ShareCard.new()
+	add_child(share_card)
+	share_card.name_changed.connect(func(n: String): eco.state["tank_name"] = n)
+	share_card.visit_requested.connect(_on_visit_requested)
+	share_card.visibility_changed.connect(func():
+		if not share_card.visible:
+			_save_now()
+	)
 
 func _open_shop() -> void:
 	if eco == null:
@@ -1184,8 +1249,122 @@ func _apply_web_layout() -> void:
 		bar.content_margin_top += float(inset["top"])
 		top_bar_panel.add_theme_stylebox_override("panel", bar)
 		top_bar_panel.custom_minimum_size = Vector2(0, 36.0 + float(inset["top"]))
+	if visit_box:
+		visit_box.offset_left = float(inset["left"])
+		visit_box.offset_right = -float(inset["right"])
+		visit_box.offset_bottom = -float(inset["bottom"])
+		var vbar := UITheme.chrome_bar_style()
+		vbar.content_margin_top += float(inset["top"])
+		visit_header.add_theme_stylebox_override("panel", vbar)
 	if bottom_box:
 		var wide := get_viewport().get_visible_rect().size.x >= WEB_WIDE_LAYOUT
 		bottom_box.vertical = not wide
 		pomodoro_panel.custom_minimum_size = Vector2(230, 0) if wide else Vector2.ZERO
 		task_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+# ================= 分享 / 逛朋友的缸 =================
+
+func _open_share() -> void:
+	if eco == null:
+		return
+	_refresh_aquarium()
+	share_card.open_card(eco,
+		func(tank_name: String) -> Dictionary: return EcoShare.snapshot(eco, eco_eval, _species_levels(), tank_name),
+		_eco_names(), fishing_manager.get_fish_data(), String(eco.state.get("tank_name", "")))
+
+func _on_visit_requested(text: String) -> void:
+	var friend := EcoShare.decode(text, eco)
+	if friend.is_empty():
+		share_card.say("这段分享码看不懂……检查一下是不是复制完整了", UITheme.DANGER)
+		return
+	share_card.hide()
+	_open_visit(friend)
+
+func _build_visit_layer() -> void:
+	visit_layer = Control.new()
+	visit_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	visit_layer.mouse_filter = Control.MOUSE_FILTER_STOP
+	visit_layer.visible = false
+	add_child(visit_layer)
+	var bg := ColorRect.new()
+	bg.color = UITheme.BG_DEEP
+	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	visit_layer.add_child(bg)
+
+	visit_box = VBoxContainer.new()
+	visit_box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	visit_box.add_theme_constant_override("separation", 0)
+	visit_layer.add_child(visit_box)
+
+	visit_header = PanelContainer.new()
+	visit_header.add_theme_stylebox_override("panel", UITheme.chrome_bar_style())
+	visit_box.add_child(visit_header)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	visit_header.add_child(row)
+	var col := VBoxContainer.new()
+	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	col.add_theme_constant_override("separation", 0)
+	row.add_child(col)
+	visit_title = Label.new()
+	visit_title.text = "来逛朋友的生态缸"
+	visit_title.add_theme_font_size_override("font_size", 15)
+	visit_title.add_theme_color_override("font_color", UITheme.INK_ON_CHROME)
+	col.add_child(visit_title)
+	visit_sub = Label.new()
+	visit_sub.add_theme_font_size_override("font_size", 12)
+	visit_sub.add_theme_color_override("font_color", Color(UITheme.INK_ON_CHROME, 0.66))
+	visit_sub.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	col.add_child(visit_sub)
+	var back := Button.new()
+	back.text = "回我的池塘"
+	back.focus_mode = Control.FOCUS_NONE
+	UITheme.style_chrome(back)
+	back.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	back.pressed.connect(_close_visit.bind(false))
+	row.add_child(back)
+
+	visit_view = AquariumView.new()
+	visit_view.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	visit_box.add_child(visit_view)
+	visit_view.set_presentation(true, true, "")
+
+	var footer := PanelContainer.new()
+	footer.add_theme_stylebox_override("panel", UITheme.chrome_bar_style())
+	visit_box.add_child(footer)
+	var frow := HBoxContainer.new()
+	frow.add_theme_constant_override("separation", 8)
+	footer.add_child(frow)
+	var tip := Label.new()
+	tip.text = "点水面帮朋友喂鱼，点鱼看看它是谁"
+	tip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	tip.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	tip.add_theme_font_size_override("font_size", 12)
+	tip.add_theme_color_override("font_color", UITheme.INK_ON_CHROME)
+	frow.add_child(tip)
+	var build := Button.new()
+	build.text = "我也去搭一只"
+	build.focus_mode = Control.FOCUS_NONE
+	UITheme.style_primary(build)
+	build.pressed.connect(_close_visit.bind(true))
+	frow.add_child(build)
+
+func _open_visit(friend: Dictionary) -> void:
+	var tank := EcoShare.build_tank(friend, fishing_manager.get_fish_data())
+	visit_view.set_presentation(true, true, "「%s」" % EcoShare.display_name(friend))
+	visit_view.update_tank(tank, EcoShare.build_eval(friend, tank), _eco_names(), friend.get("levels", {}))
+	visit_sub.text = "%d 星 · %s" % [int(friend.get("stars", 0)), EcoShare.summary(friend)]
+	visit_layer.visible = true
+	if is_web:
+		_apply_web_layout()
+
+# build = 「我也去搭一只」：直接带去自己的水族馆（第一次会弹生态缸引导，玩法说明留到下次）
+func _close_visit(build: bool) -> void:
+	visit_layer.visible = false
+	if build:
+		_intro_pending = false
+		_goto_aquarium("tank")
+	elif _intro_pending:
+		_intro_pending = false
+		_maybe_show_intro()

@@ -42,16 +42,6 @@ const STAR_OFF := Color(0.93, 0.97, 0.98, 0.25)
 const BAR_BG := Color(0.93, 0.97, 0.98, 0.18)
 const SELECT := Color(1.0, 0.90, 0.50)
 
-const STAR_ROWS := [
-	"....#....",
-	"...###...",
-	"#########",
-	".#######.",
-	"..#####..",
-	"..##.##..",
-	".##...##.",
-]
-
 # 一条鱼 / 一位访客的运动状态。位置按游动区归一化（0..1），尺寸变了也不会跑出缸。
 class Agent:
 	var kind := ""
@@ -89,6 +79,9 @@ var _seed_counter := 0
 var _synced_once := false
 
 var edit_mode := false
+# 只读展示（朋友的缸 / 分享卡片）：不能布置、没有珍珠、不开生态报告；喂鱼、点鱼照常
+var read_only := false
+var show_hud := true
 var selected_uid := -1
 var hover_uid := -1
 var dragging := false
@@ -242,7 +235,19 @@ func set_pending_pearls(n: int) -> void:
 func float_text(pos: Vector2, text: String, color := Color(1.0, 0.92, 0.60)) -> void:
 	floats.append({"text": text, "pos": pos, "t": 1.4, "color": color})
 
+func set_presentation(read_only_mode: bool, hud: bool, title: String) -> void:
+	read_only = read_only_mode
+	show_hud = hud
+	title_label.text = title
+	title_label.visible = hud
+	info_label.visible = hud
+	hud_button.visible = hud and not read_only
+	_layout_overlays()
+	queue_redraw()
+
 func set_edit_mode(on: bool) -> void:
+	if read_only and on:
+		return
 	if edit_mode == on:
 		return
 	edit_mode = on
@@ -253,9 +258,9 @@ func set_edit_mode(on: bool) -> void:
 	name_tag = {}
 	tools_panel.visible = on
 	strip_panel.visible = on
-	title_label.visible = not on
-	info_label.visible = not on
-	hud_button.visible = not on
+	title_label.visible = not on and show_hud
+	info_label.visible = not on and show_hud
+	hud_button.visible = not on and show_hud and not read_only
 	if on:
 		_rebuild_strip(true)
 	_refresh_tools()
@@ -331,7 +336,7 @@ func _sand_h(water: Rect2) -> float:
 
 # 窄屏（手机竖屏）时右上角的「鱼缸 / 图鉴 / 布置 / 全屏」条会压住左上角，HUD 和布置工具条让到它下面
 func _top_offset() -> float:
-	return 44.0 if size.x < 520.0 else 0.0
+	return 44.0 if size.x < 520.0 and not read_only else 0.0
 
 func _layout_overlays() -> void:
 	var y := _top_offset()
@@ -397,7 +402,8 @@ func _on_anim_tick() -> void:
 	_update_agents(TICK)
 	if not edit_mode:
 		_update_food(TICK)
-		_update_pearls(TICK)
+		if not read_only:
+			_update_pearls(TICK)
 	for i in range(floats.size() - 1, -1, -1):
 		floats[i]["t"] = float(floats[i]["t"]) - TICK
 		floats[i]["pos"] = (floats[i]["pos"] as Vector2) + Vector2(0, -18.0 * TICK)
@@ -723,7 +729,7 @@ func _draw() -> void:
 	if eco != null:
 		_draw_scene(water)
 	_draw_food()
-	if not edit_mode:
+	if not edit_mode and not read_only:
 		_draw_pearls(water)
 	_draw_bubbles(water)
 	var clean := float(eval.get("clean", 100.0))
@@ -733,7 +739,7 @@ func _draw() -> void:
 		draw_rect(water, murk)
 	if edit_mode:
 		_draw_edit_overlay(water)
-	else:
+	elif show_hud:
 		_draw_hud()
 	_draw_name_tag(water)
 	_draw_floats()
@@ -828,12 +834,7 @@ func _draw_bubbles(water: Rect2) -> void:
 			TankArt.px(self, bx, by, r, r, BUBBLE)
 
 func _draw_star(pos: Vector2, on: bool) -> void:
-	var col := STAR_ON if on else STAR_OFF
-	for y in range(STAR_ROWS.size()):
-		var row: String = STAR_ROWS[y]
-		for x in range(row.length()):
-			if row[x] == "#":
-				draw_rect(Rect2(pos + Vector2(x, y), Vector2.ONE), col)
+	TankArt.draw_star(self, pos, 1.0, STAR_ON if on else STAR_OFF)
 
 func _draw_hud() -> void:
 	if eval.is_empty():

@@ -4,6 +4,8 @@ class_name EcoReport
 # 生态报告：把缸的评分拆开讲清楚——氧气 / 水质 / 美观 / 生机分别从哪来、下一步做什么。
 # 数值都来自 EcoTank.evaluate，这里只负责展示。
 
+signal share_requested
+
 var content: VBoxContainer
 
 func _ready() -> void:
@@ -58,6 +60,15 @@ func show_report(ev: Dictionary, visitor_names: Dictionary) -> void:
 		_section("小建议")
 		for h in hints:
 			_line("· " + String(h), 12, UITheme.INK_SOFT, true)
+
+	content.add_child(HSeparator.new())
+	var share := Button.new()
+	share.text = "分享我的缸"
+	share.focus_mode = Control.FOCUS_NONE
+	share.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	UITheme.style_primary(share)
+	share.pressed.connect(func(): share_requested.emit())
+	content.add_child(share)
 	popup_centered()
 
 func _section(title: String) -> void:
