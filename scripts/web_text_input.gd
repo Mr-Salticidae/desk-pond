@@ -50,7 +50,8 @@ func _process(delta: float) -> void:
 			entry["ph"] = le.placeholder_text
 			entry["cur"] = le.text
 		payload.append(entry)
-	JavaScriptBridge.eval("window.__dpSync && window.__dpSync(%s)" % JSON.stringify(payload), true)
+	var vis := get_tree().root.get_visible_rect().size
+	JavaScriptBridge.eval("window.__dpSync && window.__dpSync(%s, %d, %d)" % [JSON.stringify(payload), int(vis.x), int(vis.y)], true)
 
 func _on_js_done(args: Array) -> void:
 	if args.size() < 2 or args[1] == null:
@@ -66,7 +67,7 @@ func _on_js_done(args: Array) -> void:
 	le.caret_column = value.length()
 	le.text_submitted.emit(value)
 
-# 设计尺寸 400×720 与 main.gd 的 WEB_DESIGN_SIZE 一致（canvas_items + keep 居中信箱）。
+# vw / vh 为 Godot 的可见设计尺寸（canvas_items + expand 时随屏幕长宽比变化；keep 时会居中留边，公式同样成立）。
 const _JS_SETUP := """
 (function(){
 	if (window.__dpInit) return; window.__dpInit = true;
@@ -103,12 +104,12 @@ const _JS_SETUP := """
 		if (e.key === 'Enter') finish(inp.value);
 		else if (e.key === 'Escape') finish(null);
 	});
-	window.__dpSync = function(list){
+	window.__dpSync = function(list, vw, vh){
 		var c = document.querySelector('canvas');
-		if (!c) return;
+		if (!c || !vw || !vh) return;
 		var r = c.getBoundingClientRect();
-		var s = Math.min(r.width/400, r.height/720);
-		var ox = r.left + (r.width - 400*s)/2, oy = r.top + (r.height - 720*s)/2;
+		var s = Math.min(r.width/vw, r.height/vh);
+		var ox = r.left + (r.width - vw*s)/2, oy = r.top + (r.height - vh*s)/2;
 		for (var i = 0; i < list.length; i++) {
 			var it = list[i];
 			var p = proxies[it.id];

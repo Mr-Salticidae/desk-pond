@@ -1,0 +1,177 @@
+{
+  "items": [
+    {
+      "id": "grass", "name": "细叶水草", "category": "plant", "price": 10,
+      "oxygen": 3, "clean": 1, "beauty": 2,
+      "desc": "最朴素的一丛绿，缸里有了它才像个家。"
+    },
+    {
+      "id": "hornwort", "name": "金鱼藻", "category": "plant", "price": 18,
+      "oxygen": 6, "clean": 2, "beauty": 3,
+      "desc": "长得飞快的造氧能手，一根能冒一串泡泡。"
+    },
+    {
+      "id": "sword", "name": "皇冠草", "category": "plant", "price": 24,
+      "oxygen": 5, "clean": 1, "beauty": 4,
+      "unlock": { "type": "stars", "value": 1 },
+      "desc": "叶子宽大，是鱼儿午睡的遮阳伞。"
+    },
+    {
+      "id": "moss_ball", "name": "苔藓球", "category": "plant", "price": 16,
+      "oxygen": 2, "clean": 3, "beauty": 3,
+      "unlock": { "type": "trees", "value": 1 },
+      "desc": "从森林溪边捡来的绿团子，会自己慢慢滚。"
+    },
+    {
+      "id": "duckweed", "name": "浮萍", "category": "plant", "price": 14, "anchor": "surface",
+      "oxygen": 4, "clean": 3, "beauty": 2,
+      "unlock": { "type": "stars", "value": 2 },
+      "desc": "漂在水面，替鱼儿挡一挡午后的光。"
+    },
+    {
+      "id": "rock", "name": "卵石", "category": "scape", "price": 14,
+      "beauty": 3,
+      "desc": "三块一组才好看，这是造景老师说的。"
+    },
+    {
+      "id": "stone_stack", "name": "叠石", "category": "scape", "price": 30,
+      "beauty": 6,
+      "unlock": { "type": "stars", "value": 1 },
+      "desc": "摞得稳稳的，像你今天排好的计划。"
+    },
+    {
+      "id": "driftwood", "name": "沉木", "category": "scape", "price": 40,
+      "clean": 1, "beauty": 6,
+      "unlock": { "type": "trees", "value": 3 },
+      "desc": "森林里的老枝，泡进水里成了鱼的游乐场。"
+    },
+    {
+      "id": "seashell", "name": "海螺壳", "category": "decor", "price": 24,
+      "beauty": 4,
+      "desc": "一个空着的壳，也许会有谁来住。"
+    },
+    {
+      "id": "coral", "name": "珊瑚", "category": "decor", "price": 60,
+      "beauty": 8,
+      "gift": { "type": "sessions", "value": 10 },
+      "desc": "累计专注 10 次的纪念，暖色的枝杈一年四季都开着。"
+    },
+    {
+      "id": "anemone", "name": "海葵", "category": "decor", "price": 55,
+      "beauty": 7,
+      "unlock": { "type": "stars", "value": 3 },
+      "desc": "软软地摇，好像一直在跟你打招呼。"
+    },
+    {
+      "id": "diver", "name": "潜水员", "category": "decor", "price": 70,
+      "oxygen": 1, "beauty": 8,
+      "unlock": { "type": "stars", "value": 2 },
+      "desc": "他在缸底找一枚键帽，已经找了三年。"
+    },
+    {
+      "id": "castle", "name": "小城堡", "category": "decor", "price": 90,
+      "beauty": 10,
+      "unlock": { "type": "stars", "value": 2 },
+      "desc": "每个鱼缸都该有一座，这是规矩。"
+    },
+    {
+      "id": "chest", "name": "宝箱", "category": "decor", "price": 80,
+      "beauty": 8,
+      "gift": { "type": "fish", "value": "annual_koi" },
+      "desc": "钓到年度锦鲤的赠礼，里面装着一整年的好运。"
+    },
+    {
+      "id": "shipwreck", "name": "沉船", "category": "decor", "price": 150,
+      "beauty": 12,
+      "gift": { "type": "sessions", "value": 40 },
+      "desc": "累计专注 40 次的纪念，它曾经也载着一船待办出海。"
+    },
+    {
+      "id": "airstone", "name": "气泡石", "category": "gear", "price": 45,
+      "oxygen": 10,
+      "desc": "咕嘟咕嘟，氧气管够。"
+    },
+    {
+      "id": "filter", "name": "小过滤器", "category": "gear", "price": 70,
+      "clean": 12,
+      "unlock": { "type": "stars", "value": 1 },
+      "desc": "安静地转着，把水一点点变清。"
+    },
+    {
+      "id": "snail", "name": "苹果螺", "category": "critter", "price": 28,
+      "clean": 4, "beauty": 1,
+      "desc": "慢吞吞地擦玻璃、啃藻，从不抱怨加班。"
+    },
+    {
+      "id": "shrimp", "name": "黑壳虾", "category": "critter", "price": 32,
+      "clean": 5, "beauty": 1,
+      "unlock": { "type": "stars", "value": 1 },
+      "desc": "一群小清洁工，专吃你看不见的碎屑。"
+    }
+  ],
+
+  "tank_levels": [
+    { "name": "桌面小缸", "capacity": 12, "price": 0, "stars": 0 },
+    { "name": "书架中缸", "capacity": 20, "price": 240, "stars": 1 },
+    { "name": "落地大缸", "capacity": 30, "price": 600, "stars": 2 },
+    { "name": "生态巨缸", "capacity": 40, "price": 1200, "stars": 3 }
+  ],
+
+  "sets": [
+    { "id": "reef", "name": "珊瑚礁", "bonus": 12, "items": ["coral", "anemone", "seashell"] },
+    { "id": "treasure", "name": "沉船宝藏", "bonus": 12, "items": ["shipwreck", "chest"] },
+    { "id": "stream", "name": "森林溪涧", "bonus": 12, "items": ["driftwood", "moss_ball", "rock"] },
+    { "id": "planted", "name": "水草造景", "bonus": 12, "plant_kinds": 3, "plant_count": 6 }
+  ],
+
+  "visitors": [
+    {
+      "id": "hermit_crab", "name": "寄居蟹", "gift": 15, "move": "floor",
+      "hint": "它在找一个空着的壳。",
+      "desc": "搬进了你的海螺壳，每天出门遛弯两次，准时得像打卡。",
+      "needs": [ { "items": ["seashell"], "min": 1 } ]
+    },
+    {
+      "id": "seahorse", "name": "小海马", "gift": 20, "move": "hover",
+      "hint": "喜欢把尾巴挂在茂密的水草上。",
+      "desc": "用尾巴勾着水草发呆，是缸里最会摸鱼的一位。",
+      "needs": [ { "stat": "plants", "min": 5 } ]
+    },
+    {
+      "id": "goby", "name": "虾虎鱼", "gift": 20, "move": "floor",
+      "hint": "据说它和一群小虾是室友，还得有块石头当门。",
+      "desc": "小虾负责挖洞，它负责望风——最早的结对编程。",
+      "needs": [ { "items": ["shrimp"], "min": 1 }, { "items": ["rock", "stone_stack"], "min": 1 } ]
+    },
+    {
+      "id": "clownfish", "name": "小丑鱼", "gift": 25, "move": "home", "home": ["anemone"],
+      "hint": "它离不开一朵软软的海葵。",
+      "desc": "在海葵里进进出出，好像那是它的工位。",
+      "needs": [ { "items": ["anemone"], "min": 1 } ]
+    },
+    {
+      "id": "octopus", "name": "小章鱼", "gift": 30, "move": "home", "home": ["shipwreck", "castle"],
+      "hint": "爱躲进有门洞的地方，最好旁边再堆几块石头。",
+      "desc": "八只手同时处理八件事，但每件都做得很慢。",
+      "needs": [ { "items": ["shipwreck", "castle"], "min": 1 }, { "items": ["rock", "stone_stack"], "min": 3 } ]
+    },
+    {
+      "id": "axolotl", "name": "六角恐龙", "gift": 30, "move": "floor",
+      "hint": "从森林的溪水里游来，想念沉木和苔藓。",
+      "desc": "永远一副刚睡醒的笑脸，看久了会被传染。",
+      "needs": [ { "items": ["driftwood"], "min": 1 }, { "items": ["moss_ball"], "min": 2 } ]
+    },
+    {
+      "id": "jellyfish", "name": "萤光水母", "gift": 40, "move": "drift",
+      "hint": "只有真正和谐的水里，才会亮起它。",
+      "desc": "一盏会呼吸的小灯。它来了，说明这缸水被你照顾得很好。",
+      "needs": [ { "stat": "stars", "min": 4 } ]
+    },
+    {
+      "id": "turtle", "name": "老乌龟", "gift": 60, "move": "cruise",
+      "hint": "它只在又大又和谐的缸里安家。",
+      "desc": "游得很慢，但从来没停过。它说这就是秘诀。",
+      "needs": [ { "stat": "tank_level", "min": 2 }, { "stat": "stars", "min": 5 } ]
+    }
+  ]
+}

@@ -71,3 +71,11 @@ func play_catch() -> void:
 
 func play_task_done() -> void:
 	_play(A_TASK, 0.98, 1.05)
+
+# 投喂：借用甩杆的入水声，调高音调变成轻轻的「扑通」
+func play_feed() -> void:
+	_play(A_CAST, 1.45, 1.6)
+
+# 收集珍珠泡泡
+func play_pearl() -> void:
+	_play(A_CATCH, 1.25, 1.35)

@@ -28,11 +28,8 @@ func get_default_save() -> Dictionary:
 		"total_tasks_completed": 0,
 		"active_days": 1,
 		"first_caught": {},
-		"aquarium_decor": {
-			"coral": {"on": true, "slot": 0},
-			"shipwreck": {"on": true, "slot": 1},
-			"chest": {"on": true, "slot": 2}
-		},
+		# 生态缸（贝壳 / 摆件 / 访客……），结构见 EcoTank.default_state
+		"eco": EcoTank.default_state(),
 		"tree_growth_points": 0,
 		"tree_stage": 0,
 		"tasks": [],

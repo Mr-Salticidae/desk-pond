@@ -59,6 +59,12 @@ static func header_style() -> StyleBoxFlat:
 static func chrome_bar_style() -> StyleBoxFlat:
 	return _flat(CHROME, CHROME, 0, 0, Vector4i(12, 6, 10, 6))
 
+# 悬浮在场景上的小胶囊（全屏按钮 / 迷你计时），半透明深色，压得住任何背景
+static func chip_style() -> StyleBoxFlat:
+	var c := CHROME
+	c.a = 0.86
+	return _flat(c, LINE_CHROME, 1, RADIUS, Vector4i(8, 4, 8, 4))
+
 static func input_style(focused: bool = false) -> StyleBoxFlat:
 	var border := POND if focused else LINE
 	return _flat(Color(1.0, 0.992, 0.965) if focused else SURFACE_2, border, 1 if not focused else 2, 5, Vector4i(10, 7, 10, 7))
@@ -102,9 +108,10 @@ static func style_primary(target: Control) -> void:
 	target.add_theme_color_override("font_pressed_color", Color(0.984, 0.945, 0.886))
 	target.add_theme_color_override("font_disabled_color", Color(0.953, 0.945, 0.918, 0.7))
 
-# 深色外壳上的按钮：透明底 + 浅色文字，悬停才浮现淡描边
-static func style_chrome(target: Control, danger_hover: bool = false) -> void:
-	var pad := Vector4i(10, 6, 10, 6)
+# 深色外壳上的按钮：透明底 + 浅色文字，悬停才浮现淡描边。
+# compact：手机竖屏顶栏只有 400 设计像素宽，收窄左右内边距。
+static func style_chrome(target: Control, danger_hover: bool = false, compact: bool = false) -> void:
+	var pad := Vector4i(6, 6, 6, 6) if compact else Vector4i(10, 6, 10, 6)
 	var hover_fill := Color(0.776, 0.380, 0.318, 0.20) if danger_hover else Color(0.878, 0.902, 0.855, 0.12)
 	var hover_border := Color(0.776, 0.380, 0.318, 0.55) if danger_hover else LINE_CHROME
 	_button_set(
