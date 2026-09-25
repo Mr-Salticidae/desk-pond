@@ -69,6 +69,7 @@ static func default_state() -> Dictionary:
 		"task_shell_count": 0,
 		"migrated": false,
 		"seen_guide": false,
+		"tank_name": "",
 	}
 
 func _load_catalog() -> void:
