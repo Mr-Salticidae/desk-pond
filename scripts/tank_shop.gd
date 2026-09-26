@@ -151,7 +151,10 @@ func _render_tanks() -> void:
 		var note := "缸越大，基础氧气和自净越多；鱼多了也更需要照料。"
 		if i == 0:
 			note = "最初的小缸，一切从这里开始。"
-		info.add_child(_label(note, 12, UITheme.INK_SOFT))
+		# 不换行的 Label 会按整行文字撑出最小宽度，Web 竖屏卡片只有 384 宽，会把右侧按钮挤出卡片
+		var note_label := _label(note, 12, UITheme.INK_SOFT)
+		note_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		info.add_child(note_label)
 		var btn := Button.new()
 		btn.focus_mode = Control.FOCUS_NONE
 		btn.custom_minimum_size = Vector2(88, 0)
@@ -167,7 +170,9 @@ func _render_tanks() -> void:
 			if int(eco.state.get("best_stars", 0)) < need:
 				btn.text = "未解锁"
 				btn.disabled = true
-				info.add_child(_label("生态 %d 星解锁" % need, 11, UITheme.INK_FAINT))
+				var why := _label("生态 %d 星解锁" % need, 11, UITheme.INK_FAINT)
+				why.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+				info.add_child(why)
 			else:
 				btn.text = "%d 贝壳" % int(lv.get("price", 0))
 				UITheme.style_primary(btn)
