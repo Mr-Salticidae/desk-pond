@@ -146,17 +146,29 @@ static func style_progress(bar: ProgressBar) -> void:
 
 const PIXEL_FONT := "res://assets/fonts/fusion-pixel-12px-proportional-zh_hans.otf.woff2"
 
-# 显式点名各系统自带的中文字体，最后用打包的像素字体兜底：哪台机器都不会再出豆腐块
-static func cjk_system_font() -> Font:
-	var f := SystemFont.new()
-	f.font_names = PackedStringArray([
-		"PingFang SC", "Hiragino Sans GB", "Heiti SC", "STHeiti",              # macOS
-		"Noto Sans CJK SC", "Source Han Sans SC", "WenQuanYi Micro Hei",      # Linux
-		"Microsoft YaHei",
-	])
+# 桌面非 Windows 的默认字体：引擎自带字体画拉丁 / 数字，中文一律由打包的像素字体补（与 Web / 手机版一致）。
+# 不依赖任何系统字体查找：GitHub Actions macOS 实测，自动系统回退给中文出豆腐块，
+# 显式 SystemFont（苹方等）更是连数字都画不出来。
+static func desktop_cjk_font() -> Font:
+	var f := FontVariation.new()
+	f.base_font = ThemeDB.fallback_font
 	var fb: Array[Font] = [load(PIXEL_FONT)]
 	f.fallbacks = fb
 	return f
+
+# 排查用：--font-debug 时打印字体解析情况（CI 日志里看）
+static func font_debug_report() -> String:
+	var lines := PackedStringArray()
+	var d := desktop_cjk_font()
+	lines.append("desktop_cjk_font has 中=%s A=%s" % [d.has_char("中".unicode_at(0)), d.has_char(65)])
+	var pixel: Font = load(PIXEL_FONT)
+	lines.append("pixel_font loaded=%s has 中=%s" % [pixel != null, pixel != null and pixel.has_char("中".unicode_at(0))])
+	for n in ["PingFang SC", "Hiragino Sans GB", "Heiti SC", "Helvetica"]:
+		var s := SystemFont.new()
+		s.font_names = PackedStringArray([n])
+		lines.append("SystemFont %s -> name=%s faces=%d has 中=%s" % [n, s.get_font_name(), s.get_face_count(), s.has_char("中".unicode_at(0))])
+	lines.append("OS system fonts: %d" % OS.get_system_fonts().size())
+	return "\n".join(lines)
 
 static func make_theme() -> Theme:
 	var t := Theme.new()
@@ -168,7 +180,7 @@ static func make_theme() -> Theme:
 	elif OS.get_name() != "Windows":
 		# macOS / Linux：不能指望引擎自动借系统字体补中文——2026-09-29 GitHub Actions macOS 实测，
 		# 导出版的中文全是豆腐块（Windows 上的自动回退一直正常，所以 Windows 保持原样不动）。
-		t.default_font = cjk_system_font()
+		t.default_font = desktop_cjk_font()
 
 	# 文本
 	t.set_color("font_color", "Label", INK)

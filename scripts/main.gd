@@ -90,6 +90,8 @@ func _ready() -> void:
 			get_window().size = _debug_web_size()
 	else:
 		get_window().min_size = Vector2i(640, 520)
+	if OS.get_cmdline_user_args().has("--font-debug"):
+		print("FONT_DEBUG\n" + UITheme.font_debug_report())
 	save_manager = SaveManagerScript.new()
 	fishing_manager = FishingManagerScript.new()
 	tree_manager = TreeManagerScript.new()
