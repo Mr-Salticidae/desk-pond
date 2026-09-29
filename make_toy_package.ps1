@@ -1,4 +1,4 @@
-# 工位池塘 · B站 toy 上传包打包脚本
+﻿# 工位池塘 · B站 toy 上传包打包脚本
 # 前置：已用 Godot 导出 Web 版到 build/web（godot --headless --path . --export-release Web build/web/index.html）
 # 作用：B站 toy 托管会吞 .pck 扩展名的文件（上传后 404，报 "Failed loading file 'index.pck'"），
 #       故把 pck 改名为 index.data（toy 实证放行的扩展名），并给 index.html 的 GODOT_CONFIG
