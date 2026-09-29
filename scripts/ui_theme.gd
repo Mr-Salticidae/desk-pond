@@ -144,13 +144,31 @@ static func style_progress(bar: ProgressBar) -> void:
 
 # ---- 全局主题：让整棵 UI 树共享极简底色 ----
 
+const PIXEL_FONT := "res://assets/fonts/fusion-pixel-12px-proportional-zh_hans.otf.woff2"
+
+# 显式点名各系统自带的中文字体，最后用打包的像素字体兜底：哪台机器都不会再出豆腐块
+static func cjk_system_font() -> Font:
+	var f := SystemFont.new()
+	f.font_names = PackedStringArray([
+		"PingFang SC", "Hiragino Sans GB", "Heiti SC", "STHeiti",              # macOS
+		"Noto Sans CJK SC", "Source Han Sans SC", "WenQuanYi Micro Hei",      # Linux
+		"Microsoft YaHei",
+	])
+	var fb: Array[Font] = [load(PIXEL_FONT)]
+	f.fallbacks = fb
+	return f
+
 static func make_theme() -> Theme:
 	var t := Theme.new()
 	t.default_font_size = 14
 	# Web 导出没有系统字体可回退，中文会整体缺字；
 	# 打包的缝合像素字体（OFL）只在 Web 上启用，桌面端保持系统字体的既有观感。
 	if OS.has_feature("web"):
-		t.default_font = load("res://assets/fonts/fusion-pixel-12px-proportional-zh_hans.otf.woff2")
+		t.default_font = load(PIXEL_FONT)
+	elif OS.get_name() != "Windows":
+		# macOS / Linux：不能指望引擎自动借系统字体补中文——2026-09-29 GitHub Actions macOS 实测，
+		# 导出版的中文全是豆腐块（Windows 上的自动回退一直正常，所以 Windows 保持原样不动）。
+		t.default_font = cjk_system_font()
 
 	# 文本
 	t.set_color("font_color", "Label", INK)

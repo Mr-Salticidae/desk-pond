@@ -1,6 +1,6 @@
 # Desk Pond
 
-[![最新版本](https://img.shields.io/badge/%E6%9C%80%E6%96%B0%E7%89%88%E6%9C%AC-v0.6.0-c9824a)](https://github.com/Mr-Salticidae/desk-pond/releases/latest)
+[![最新版本](https://img.shields.io/badge/%E6%9C%80%E6%96%B0%E7%89%88%E6%9C%AC-v0.6.1-c9824a)](https://github.com/Mr-Salticidae/desk-pond/releases/latest)
 
 一个 2D 像素桌面陪伴小游戏：你专注，它钓鱼；你完成计划，它长树；攒下的贝壳，拿去搭一只属于你的生态缸。
 
