@@ -22,9 +22,10 @@ const MAX_NAME_CHARS := 12
 const MAX_PLACED := 80
 const MAX_FISH_IN_TANK := 40
 const PARAM := "tank"
-# 桌面版分享时拼链接用：填上 Web 版（B站 Toy）页面地址，例如
-# "https://www.bilibili.com/toy/<slug>/index.html"，桌面分享就会带可点开的链接；留空则只给分享码。
-const SHARE_WEB_URL := ""
+# 分享链接的固定落地页：B站 Toy 外层地址。桌面版靠它给出可点开的链接（留空则只给分享码）；
+# Web 版也优先用它——Toy 把游戏套在带版本号的 iframe 里（…/<id>-v18577/index.html），
+# 从页面 location 拼出来的链接会随每次 Toy 更新失效。外层地址会把 ?tank= 原样转给 iframe（2026-09-29 实测）。
+const SHARE_WEB_URL := "https://www.bilibili.com/toy/6BterUHrdJEq8SiW/index.html"
 
 # 从当前缸拍一张「快照」，缸名为空时用默认名
 static func snapshot(eco: EcoTank, ev: Dictionary, levels: Dictionary, tank_name: String) -> Dictionary:

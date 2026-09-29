@@ -87,6 +87,10 @@ func _test_extract_from_link_and_text() -> void:
 	_check(EcoShare.extract_code("  %s\n" % code) == code, "bare code with whitespace")
 	_check(not EcoShare.decode("来看看 index.html?tank=%s" % code, eco).is_empty(), "decode accepts share text")
 	_check(EcoShare.share_path(code) == "index.html?tank=" + code, "toy share path")
+	# 桌面版 / Web 版复制出去的固定落地页链接，粘贴回来必须能原样解出分享码
+	var link := "%s?%s=%s" % [EcoShare.SHARE_WEB_URL, EcoShare.PARAM, code]
+	_check(EcoShare.SHARE_WEB_URL.begins_with("https://"), "share landing url configured")
+	_check(EcoShare.extract_code(link) == code, "code from desktop share link")
 
 func _test_rejects_garbage() -> void:
 	var eco := _tank()

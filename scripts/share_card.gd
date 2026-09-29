@@ -256,6 +256,9 @@ func _regen() -> void:
 func _update_hint() -> void:
 	if has_qr:
 		card_hint.text = "扫码逛我的缸，还能帮我喂鱼。"
+	elif _share_url() != "":
+		# 桌面版没有二维码（B站 App 的 getQrCode 只在 Toy 里有），但分享文字里带可点开的链接
+		card_hint.text = "点开我发的链接，就能逛我的缸、帮我喂鱼。"
 	else:
 		card_hint.text = "打开「工位池塘」→ 水族馆 → 分享 → 去朋友家看看，粘贴分享码就能逛我的缸。"
 
@@ -272,10 +275,11 @@ func _update_buttons() -> void:
 # ---------- 分享动作 ----------
 
 func _share_url() -> String:
-	if OS.has_feature("web"):
-		return WebShell.page_link(code)
+	# 固定落地页优先（见 EcoShare.SHARE_WEB_URL 的说明）；没配才退回当前页面地址
 	if EcoShare.SHARE_WEB_URL != "":
 		return "%s?%s=%s" % [EcoShare.SHARE_WEB_URL, EcoShare.PARAM, code]
+	if OS.has_feature("web"):
+		return WebShell.page_link(code)
 	return ""
 
 func _share_text() -> String:
