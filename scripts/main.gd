@@ -394,6 +394,7 @@ func _setup_modules() -> void:
 	aquarium_view.shop_requested.connect(_open_shop)
 	aquarium_view.report_requested.connect(_open_eco_report)
 	aquarium_view.edit_mode_changed.connect(_on_tank_edit_mode_changed)
+	aquarium_view.resized.connect(_sync_aqua_subtab)   # 布置途中转屏：宽窄变了，标签条跟着收 / 放
 	shop.changed.connect(_on_shop_changed)
 
 	_on_tree_growth_changed(tree_manager.growth_points)
@@ -514,8 +515,7 @@ func _switch_room(room: String) -> void:
 		if room == "forest":
 			forest_view.update_forest(tree_manager)
 	var in_aqua := room == "aquarium"
-	if aqua_subtab_panel:
-		aqua_subtab_panel.visible = in_aqua
+	_sync_aqua_subtab()
 	if in_aqua:
 		_set_aqua_submode(aquarium_submode)
 		_maybe_show_eco_guide()
@@ -524,6 +524,13 @@ func _switch_room(room: String) -> void:
 			aquarium_view.visible = false
 		if catalog_view:
 			catalog_view.visible = false
+
+# 水族馆子标签条只在水族馆显示；手机竖屏布置时收起，把顶部让给布置工具条（「完成」退出后恢复）
+func _sync_aqua_subtab() -> void:
+	if aqua_subtab_panel == null:
+		return
+	var editing_narrow := aquarium_view != null and aquarium_view.edit_mode and aquarium_view.is_narrow()
+	aqua_subtab_panel.visible = current_room == "aquarium" and not editing_narrow
 
 func _set_aqua_submode(mode: String) -> void:
 	aquarium_submode = mode
@@ -1115,6 +1122,7 @@ func _on_tank_edit_mode_changed(on: bool) -> void:
 				aqua_subtabs["tank"].button_pressed = true
 	if aqua_full_button:
 		aqua_full_button.visible = not on
+	_sync_aqua_subtab()
 
 func _goto_aquarium(mode: String) -> void:
 	aquarium_submode = mode

@@ -264,6 +264,7 @@ func set_edit_mode(on: bool) -> void:
 	if on:
 		_rebuild_strip(true)
 	_refresh_tools()
+	_layout_overlays()
 	edit_mode_changed.emit(on)
 	queue_redraw()
 
@@ -334,9 +335,17 @@ func _ps() -> float:
 func _sand_h(water: Rect2) -> float:
 	return clampf(water.size.y * 0.15, 16.0, 60.0 * _ps())
 
-# 窄屏（手机竖屏）时右上角的「鱼缸 / 图鉴 / 布置 / 全屏」条会压住左上角，HUD 和布置工具条让到它下面
+# 窄屏（手机竖屏）：场景区横向放不下左右两条浮层
+const NARROW_W := 520.0
+
+func is_narrow() -> bool:
+	return size.x < NARROW_W
+
+# 窄屏时右上角的「鱼缸 / 图鉴 / 布置 / 分享」条会压住左上角，HUD 让到它下面。
+# 布置时 main 会把那条收起（布置是独立模式，靠「完成」退出），布置工具条就留在最顶上——
+# 否则两条深色条一左一右错开叠在水面上，提示字再压第三层（2026-09-29 手机实测反馈）。
 func _top_offset() -> float:
-	return 44.0 if size.x < 520.0 and not read_only else 0.0
+	return 44.0 if is_narrow() and not read_only and not edit_mode else 0.0
 
 func _layout_overlays() -> void:
 	var y := _top_offset()
