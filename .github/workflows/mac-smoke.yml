@@ -1,0 +1,100 @@
+# macOS 版冒烟测试：作者手上没有 Mac，用 GitHub 的 macOS runner 验证 Release 里的 zip 能不能用。
+# 两种芯片各跑一遍（安装包是 Universal 2）：
+#   1. 静态检查：解压（ditto，等同系统“归档实用工具”）、ad-hoc 签名有效、双架构、版本号对得上 tag
+#   2. 启动：无界面跑主场景，扫脚本报错；再带分享码启动一次（逛朋友的缸那条路径）
+#   3. 尝试有画面地录几帧（CI 虚拟机未必有 GPU，失败不算红），帧和日志存成产物
+# 覆盖不到的：Gatekeeper 首次放行的交互（CI 下载的文件没有隔离属性），这一步仍以用户反馈为准。
+name: macOS 冒烟测试
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "要测的 Release tag（留空 = 最新版）"
+        required: false
+        default: ""
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-latest      # Apple 芯片（arm64）
+            arch: arm64
+          - runner: macos-15-intel    # Intel（x86_64）
+            arch: x86_64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      # 测试用分享码：一只 2 星、11 条鱼的演示缸（宣传片里那只“右下角的池塘”）
+      VISIT_CODE: AQhkMhLlj7PkuIvop5LnmoTmsaDloZgHAAMCAQIBAgIBAwEBBAEBBQEBCQEBAAAGABomAdssBahmBsfZDZRGD-1M4g
+    steps:
+      - name: 下载 Release 里的 macOS zip
+        run: |
+          TAG="${{ github.event.release.tag_name || inputs.tag }}"
+          if [ -z "$TAG" ]; then TAG=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName -q .tagName); fi
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern 'DeskPond-macOS-*.zip' --dir dl
+          ls -la dl
+          echo "机器：$(uname -m) / macOS $(sw_vers -productVersion)"
+
+      - name: 解压并做静态检查（签名 / 架构 / 版本）
+        run: |
+          ditto -x -k dl/DeskPond-macOS-*.zip app
+          APP=$(find app -maxdepth 2 -name '*.app' | head -1)
+          test -n "$APP" || { echo "::error::zip 里没找到 .app"; exit 1; }
+          EXE=$(find "$APP/Contents/MacOS" -type f -perm -u+x | head -1)
+          test -n "$EXE" || { echo "::error::可执行文件缺执行权限（zip 解压丢了权限位？）"; exit 1; }
+          echo "APP=$APP" >> "$GITHUB_ENV"
+          echo "EXE=$EXE" >> "$GITHUB_ENV"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          codesign -dv "$APP" 2>&1 | grep -E "Signature|Identifier|Format" || true
+          ARCHS=$(lipo -archs "$EXE"); echo "架构：$ARCHS"
+          for a in arm64 x86_64; do echo "$ARCHS" | grep -qw "$a" || { echo "::error::缺 $a 架构"; exit 1; }; done
+          VER=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$APP/Contents/Info.plist")
+          echo "版本：$VER（tag $TAG）"
+          [ "v$VER" = "$TAG" ] || { echo "::error::Info.plist 版本 $VER 和 tag $TAG 对不上"; exit 1; }
+
+      - name: 无界面启动（主场景跑 300 帧）
+        run: |
+          mkdir -p logs
+          "$EXE" --headless --quit-after 300 > logs/headless.log 2>&1; code=$?
+          tail -20 logs/headless.log
+          if grep -E "SCRIPT ERROR|Parse Error|Failed loading|Can't open" logs/headless.log; then echo "::error::启动日志里有脚本 / 资源报错"; exit 1; fi
+          [ $code -eq 0 ] || { echo "::error::退出码 $code"; exit 1; }
+
+      - name: 无界面带分享码启动（逛朋友的缸）
+        run: |
+          "$EXE" --headless --quit-after 300 -- --visit="$VISIT_CODE" > logs/visit.log 2>&1; code=$?
+          tail -20 logs/visit.log
+          if grep -E "SCRIPT ERROR|Parse Error|Failed loading" logs/visit.log; then echo "::error::逛缸路径有报错"; exit 1; fi
+          [ $code -eq 0 ] || { echo "::error::退出码 $code"; exit 1; }
+
+      - name: 有画面录几帧（CI 可能没有 GPU，失败不算红）
+        continue-on-error: true
+        run: |
+          mkdir -p frames
+          "$EXE" --write-movie "$PWD/frames/f.png" --fixed-fps 24 --quit-after 96 -- --visit="$VISIT_CODE" > logs/render.log 2>&1 || true
+          tail -15 logs/render.log
+          n=$(ls frames/*.png 2>/dev/null | wc -l | tr -d ' ')
+          echo "录到 $n 帧"
+          # 只留最后几帧，产物别太大
+          ls frames/*.png 2>/dev/null | sort | awk -v n="$n" 'NR <= n - 4' | xargs rm -f 2>/dev/null || true
+          [ "$n" -gt 0 ]
+
+      - name: 上传日志和截图
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-smoke-${{ matrix.arch }}
+          path: |
+            logs/
+            frames/
+          if-no-files-found: ignore
