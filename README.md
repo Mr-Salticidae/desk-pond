@@ -11,7 +11,7 @@
 ### 其他平台
 
 - **macOS**：下载 **DeskPond-macOS-v*.zip**，双击解压后打开。因未做 Apple 公证，首次打开需在「系统设置 → 隐私与安全性」底部点「仍要打开」放行一次（Universal 双架构，Apple Silicon / Intel 通用）。
-- **手机 / 网页版**：Web 导出（竖屏布局、全面屏适配：在 B站 App 内自动进入沉浸模式并避让刘海 / 手势条），通过 B站 toy 托管发布，入口见发布动态。
+- **手机 / 网页版**：Web 导出（竖屏布局、全面屏适配：在 B站 App 内自动进入沉浸模式并避让刘海 / 手势条），通过 B站 toy 托管发布：[点这里直接玩](https://www.bilibili.com/toy/6BterUHrdJEq8SiW/index.html)。电脑版“复制链接”分享出去的也是这个页面，朋友点开就能逛你的缸。
 
 ## 从源码导出
 
