@@ -17,7 +17,8 @@ on:
     types: [published]
 
 permissions:
-  contents: read
+  # write 只为能看到草稿 Release：修复版先挂草稿给这里测，测过再公开发布（gh release download 会自动找草稿）
+  contents: write
 
 jobs:
   smoke:
@@ -80,14 +81,18 @@ jobs:
       - name: 有画面录几帧（CI 可能没有 GPU，失败不算红）
         continue-on-error: true
         run: |
-          mkdir -p frames
-          "$EXE" --write-movie "$PWD/frames/f.png" --fixed-fps 24 --quit-after 96 -- --visit="$VISIT_CODE" > logs/render.log 2>&1 || true
-          tail -15 logs/render.log
-          n=$(ls frames/*.png 2>/dev/null | wc -l | tr -d ' ')
-          echo "录到 $n 帧"
-          # 只留最后几帧，产物别太大
-          ls frames/*.png 2>/dev/null | sort | awk -v n="$n" 'NR <= n - 4' | xargs rm -f 2>/dev/null || true
-          [ "$n" -gt 0 ]
+          # 两段：正常启动（首次会弹玩法说明，中文最密，查字体豆腐块）+ 带分享码逛缸
+          for mode in main visit; do
+            mkdir -p "frames/$mode"
+            args=(); [ "$mode" = visit ] && args=(-- --visit="$VISIT_CODE")
+            "$EXE" --write-movie "$PWD/frames/$mode/f.png" --fixed-fps 24 --quit-after 96 "${args[@]}" > "logs/render_$mode.log" 2>&1 || true
+            tail -5 "logs/render_$mode.log"
+            n=$(ls frames/$mode/*.png 2>/dev/null | wc -l | tr -d ' ')
+            echo "$mode：录到 $n 帧"
+            # 只留最后一帧，产物别太大
+            ls frames/$mode/*.png 2>/dev/null | sort | awk -v n="$n" 'NR < n' | xargs rm -f 2>/dev/null || true
+          done
+          [ "$(ls frames/*/*.png 2>/dev/null | wc -l | tr -d ' ')" -gt 0 ]
 
       - name: 上传日志和截图
         if: always()
