@@ -1,12 +1,13 @@
 extends RefCounted
 class_name SaveManager
 
-const SAVE_PATH = "user://save_data.json"
+# 测试会改成临时文件，避免读写玩家的真实存档
+static var save_path := "user://save_data.json"
 
 func load_save() -> Dictionary:
 	var data := get_default_save()
-	if FileAccess.file_exists(SAVE_PATH):
-		var file := FileAccess.open(SAVE_PATH, FileAccess.READ)
+	if FileAccess.file_exists(save_path):
+		var file := FileAccess.open(save_path, FileAccess.READ)
 		if file:
 			var parsed = JSON.parse_string(file.get_as_text())
 			if typeof(parsed) == TYPE_DICTIONARY:
@@ -14,7 +15,7 @@ func load_save() -> Dictionary:
 	return check_new_day(data)
 
 func save_game(data: Dictionary) -> void:
-	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	var file := FileAccess.open(save_path, FileAccess.WRITE)
 	if file:
 		file.store_string(JSON.stringify(data, "\t"))
 
@@ -50,7 +51,10 @@ func get_default_save() -> Dictionary:
 			"always_on_top": false,
 			"focus_minutes": 25,
 			"break_minutes": 5,
-			"muted": false
+			"muted": false,
+			"count_up": false,
+			# 桌面窗口大小 [宽, 高]，空 = 默认 640×520
+			"window_size": []
 		}
 	}
 

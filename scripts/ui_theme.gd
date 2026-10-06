@@ -93,6 +93,19 @@ static func style_ghost(target: Control) -> void:
 	target.add_theme_color_override("font_pressed_color", INK)
 	target.add_theme_color_override("font_disabled_color", INK_FAINT)
 
+# 小号幽灵按钮：嵌在标题行里的开关，内边距和字号都压小，不把行高撑高
+static func style_pill(target: Control) -> void:
+	style_ghost(target)
+	var pad := Vector4i(8, 1, 8, 1)
+	_button_set(
+		target,
+		_flat(SURFACE_2, LINE, 1, 5, pad),
+		_flat(Color(0.945, 0.933, 0.898), Color(0.157, 0.200, 0.200, 0.30), 1, 5, pad),
+		_flat(SURFACE_3, Color(0.157, 0.200, 0.200, 0.30), 1, 5, pad),
+		_flat(SURFACE_2, LINE, 1, 5, pad)
+	)
+	target.add_theme_font_size_override("font_size", 12)
+
 # 主操作按钮：陶土暖色实底，每个界面仅用于最重要的一个动作
 static func style_primary(target: Control) -> void:
 	var pad := Vector4i(14, 7, 14, 7)

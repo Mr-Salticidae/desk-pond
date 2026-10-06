@@ -34,6 +34,7 @@ window/size/window_width_override=640
 window/size/window_height_override=520
 window/size/borderless=true
 window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
 window/subwindows/embed_subwindows=true
 
 [internationalization]

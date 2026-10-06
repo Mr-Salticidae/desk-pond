@@ -24,7 +24,7 @@
 
 ## 当前功能
 
-- 可配置专注/休息时长的番茄钟。
+- 可配置专注/休息时长的番茄钟，支持倒计时 / 正计时（正计时从 0 往上数，自己收竿，满 1 分钟算一次专注）。
 - 点击池塘或“甩杆”开始专注，专注结束后自动进入休息倒计时。
 - 今日任务苗圃，完成任务会增加树的成长值。
 - 完整代办清单窗口，适合管理更多任务。
@@ -34,10 +34,11 @@
 - 访客：布置出特定的缸（海螺壳、茂密水草、沉木 + 苔藓球……），专注完成时寄居蟹、小海马、六角恐龙等会游进来。
 - 鱼的互动：点水面喂鱼、点鱼看名字和等级；同种鱼钓得越多等级越高；缸里每天冒出珍珠泡泡，点一下收集贝壳。
 - 全屏：收起下方控制台，让场景占满窗口 / 手机整屏。
+- 桌面版窗口可拖动右边 / 下边 / 右下角调整大小：内容等比放大，比例不同时多出来的空间留给场景；下次打开记住大小。
 - **分享**：一键生成生态缸卡片图（缸名、星级、鱼和访客，B站 App 内附二维码），分享 / 存相册 / 复制链接，不用再手动截图。朋友点开链接直接逛你的缸、帮你喂鱼，不需要账号或服务器；电脑版也能粘贴分享码去朋友家看看。
 - 成长档案，只增不减；应用开着跨过午夜也会自动换天（重置今日计数、结转未完成的任务）。
 - 轻量环境水声与事件音效，顶栏「声 / 静」一键开关。
-- 本地保存每日任务、番茄数、鱼类收藏、树成长、声音与窗口置顶设置。
+- 本地保存每日任务、番茄数、鱼类收藏、树成长、计时方式、声音、窗口置顶与窗口大小设置。
 
 ## 运行方式
 
@@ -56,6 +57,9 @@
 # 生态缸 / 分享码逻辑测试（全部通过时退出码 0）
 & 'C:\Program Files (x86)\Steam\steamapps\common\Godot Engine\godot.windows.opt.tools.64.exe' --headless --path 'C:\工位池塘' --script tests/test_eco.gd
 & 'C:\Program Files (x86)\Steam\steamapps\common\Godot Engine\godot.windows.opt.tools.64.exe' --headless --path 'C:\工位池塘' --script tests/test_share.gd
+# 番茄钟（倒计时 / 正计时）与桌面布局（各房间、各窗口大小下控制台都不超出窗口）测试
+& 'C:\Program Files (x86)\Steam\steamapps\common\Godot Engine\godot.windows.opt.tools.64.exe' --headless --path 'C:\工位池塘' --script tests/test_timer.gd
+& 'C:\Program Files (x86)\Steam\steamapps\common\Godot Engine\godot.windows.opt.tools.64.exe' --headless --path 'C:\工位池塘' --script tests/test_layout.gd
 # 在桌面上预览手机布局（390×844，模拟刘海与手势条）
 & 'C:\Program Files (x86)\Steam\steamapps\common\Godot Engine\godot.windows.opt.tools.64.exe' --path 'C:\工位池塘' -- --web-layout --web-size=390x844 --safe-area=44,0,34,0
 ```
@@ -64,6 +68,8 @@
 
 - 点击池塘水面，或按“甩杆”，开始一次专注。
 - 在左侧调整专注和休息分钟数，开始后设置会锁定。
+- 钓竿右上角切换「倒计时 / 正计时」；正计时专注中主按钮变成「收竿」，点它结算（不满 1 分钟算空竿）。
+- 桌面版拖窗口的右边、下边或右下角手柄调整大小。
 - 在右侧写下今日任务，勾选完成后小树成长。
 - 点“展开”打开完整代办清单。
 - 顶栏的贝壳数可直接打开水族商店。

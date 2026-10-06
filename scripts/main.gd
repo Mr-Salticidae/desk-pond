@@ -72,6 +72,16 @@ var timer_chip_label: Label
 var _dragging_window: bool = false
 var _drag_anchor: Vector2i = Vector2i.ZERO
 
+# 无边框窗口没有系统边框可拖：右边、下边、右下角各留一条拖拽区来调整大小。
+# 内容按 640×520 设计尺寸等比放大（project.godot 里 stretch aspect = expand），
+# 比例不一致时多出来的宽 / 高留给场景。
+const RESIZE_BAND := 5.0
+const RESIZE_GRIP := 14.0
+var _resizing := false
+var _resize_dir := Vector2i.ZERO      # (1, 0) 拖右边，(0, 1) 拖下边，(1, 1) 拖右下角
+var _resize_anchor := Vector2i.ZERO   # 按下时鼠标的屏幕坐标
+var _resize_start_size := Vector2i.ZERO
+
 # Web 版（B站 toy / 手机浏览器）：竖屏布局，去掉桌面窗口专属功能。
 # 桌面端调试手机布局：godot --path . -- --web-layout [--web-size=390x844] [--safe-area=44,0,34,0]
 var is_web := OS.has_feature("web") or OS.get_cmdline_user_args().has("--web-layout")
@@ -100,6 +110,7 @@ func _ready() -> void:
 	_build_ui()
 	_setup_modules()
 	_apply_window_settings()
+	_restore_window_size()
 	_start_day_watch()
 	# 从朋友的分享链接进来：先带他逛朋友的缸，玩法说明等回到自己池塘再弹
 	var incoming := WebShell.take_incoming_code()
@@ -264,7 +275,9 @@ func _build_ui() -> void:
 		top_bar.add_child(close_button)
 
 	scene_area = Control.new()
-	scene_area.custom_minimum_size = Vector2(0, 200) if is_web else Vector2(640, 200)
+	# 桌面高度预算：顶栏 48 + 场景 + 控制台 280 ≤ 窗口最小高度 520。
+	# 场景最小高度再大，整列就会比窗口高，控制台底边被裁掉
+	scene_area.custom_minimum_size = Vector2(0, 200) if is_web else Vector2(0, 180)
 	scene_area.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scene_area.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scene_area.clip_contents = true
@@ -323,7 +336,8 @@ func _build_ui() -> void:
 
 	bottom_margin = MarginContainer.new()
 	bottom_margin.custom_minimum_size = Vector2(0, 280)
-	bottom_margin.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	# 桌面窗口拉高时，多出来的高度全给场景（池塘 / 鱼缸更大），控制台保持原高
+	bottom_margin.size_flags_vertical = Control.SIZE_EXPAND_FILL if is_web else Control.SIZE_FILL
 	bottom_margin.add_theme_constant_override("margin_left", 8)
 	bottom_margin.add_theme_constant_override("margin_right", 8)
 	bottom_margin.add_theme_constant_override("margin_top", 8)
@@ -343,7 +357,9 @@ func _build_ui() -> void:
 	bottom.add_child(pomodoro_panel)
 
 	task_panel = TaskPanelScene.instantiate()
-	task_panel.custom_minimum_size = Vector2.ZERO if is_web else Vector2(390, 0)
+	# 桌面宽度预算：边距 8 + 钓竿 230 + 间隔 8 + 任务 386 + 边距 8 = 窗口最小宽度 640。
+	# 超过一点整列就比窗口宽，任务区右侧的按钮会被裁掉（issue #1 同类问题）
+	task_panel.custom_minimum_size = Vector2.ZERO if is_web else Vector2(386, 0)
 	task_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL if not is_web else Control.SIZE_FILL
 	task_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	bottom.add_child(task_panel)
@@ -354,6 +370,7 @@ func _build_ui() -> void:
 	_build_ledger_window()
 	_build_eco_windows()
 	_build_visit_layer()
+	_build_resize_handles()
 
 	room_tabs["pond"].set_pressed_no_signal(true)
 	_switch_room("pond")
@@ -415,7 +432,7 @@ func _on_focus_completed() -> void:
 
 	# 生态缸：按专注分钟给贝壳；达成里程碑送装饰；条件满足的访客趁这次专注游进来
 	var extras: Array = []
-	var shells := eco.focus_reward(pomodoro_panel.focus_seconds / 60)
+	var shells := eco.focus_reward(pomodoro_panel.last_focus_seconds / 60)
 	if shells > 0:
 		extras.append("+%d 贝壳" % shells)
 	else:
@@ -563,6 +580,7 @@ func _on_timer_state_changed(state: String) -> void:
 func _on_timer_settings_changed(settings: Dictionary) -> void:
 	save_data["settings"]["focus_minutes"] = int(settings.get("focus_minutes", save_data["settings"].get("focus_minutes", 25)))
 	save_data["settings"]["break_minutes"] = int(settings.get("break_minutes", save_data["settings"].get("break_minutes", 5)))
+	save_data["settings"]["count_up"] = bool(settings.get("count_up", save_data["settings"].get("count_up", false)))
 	_save_now()
 
 func _on_cast_requested() -> void:
@@ -619,6 +637,81 @@ func _virtual_usable_rect() -> Rect2i:
 	for i in range(1, DisplayServer.get_screen_count()):
 		rect = rect.merge(DisplayServer.screen_get_usable_rect(i))
 	return rect
+
+# ================= 窗口缩放 =================
+
+func _build_resize_handles() -> void:
+	if is_web:
+		return
+	var right := _make_resize_handle(Vector2i(1, 0), Control.CURSOR_HSIZE)
+	right.anchor_left = 1.0
+	right.anchor_right = 1.0
+	right.anchor_bottom = 1.0
+	right.offset_left = -RESIZE_BAND
+	var bottom := _make_resize_handle(Vector2i(0, 1), Control.CURSOR_VSIZE)
+	bottom.anchor_top = 1.0
+	bottom.anchor_right = 1.0
+	bottom.anchor_bottom = 1.0
+	bottom.offset_top = -RESIZE_BAND
+	# 右下角：带三道斜纹的小手柄，看得出这里能拖
+	var grip := _make_resize_handle(Vector2i(1, 1), Control.CURSOR_FDIAGSIZE)
+	grip.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	grip.offset_left = -RESIZE_GRIP
+	grip.offset_top = -RESIZE_GRIP
+	grip.draw.connect(func():
+		var c := Color(UITheme.INK_FAINT, 0.8)
+		for i in range(3):
+			var d := 4.0 + i * 4.0
+			grip.draw_line(Vector2(RESIZE_GRIP - d, RESIZE_GRIP - 2.0), Vector2(RESIZE_GRIP - 2.0, RESIZE_GRIP - d), c, 1.0)
+	)
+
+func _make_resize_handle(dir: Vector2i, cursor: Control.CursorShape) -> Control:
+	var handle := Control.new()
+	handle.mouse_filter = Control.MOUSE_FILTER_STOP
+	handle.mouse_default_cursor_shape = cursor
+	handle.gui_input.connect(_on_resize_input.bind(dir))
+	add_child(handle)
+	return handle
+
+func _on_resize_input(event: InputEvent, dir: Vector2i) -> void:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		_resizing = event.pressed
+		if event.pressed:
+			_resize_dir = dir
+			_resize_anchor = DisplayServer.mouse_get_position()
+			_resize_start_size = get_window().size
+		else:
+			_remember_window_size()
+	elif event is InputEventMouseMotion and _resizing:
+		var delta := DisplayServer.mouse_get_position() - _resize_anchor
+		var target := _resize_start_size + Vector2i(delta.x * _resize_dir.x, delta.y * _resize_dir.y)
+		get_window().size = _clamp_window_size(target)
+
+# 不小于设计尺寸，也不超出桌面：窗口右下角最多拉到所在桌面区域的边上
+func _clamp_window_size(target: Vector2i) -> Vector2i:
+	var win := get_window()
+	var area := _virtual_usable_rect()
+	var max_size := (area.end - win.position).max(win.min_size)
+	return target.clamp(win.min_size, max_size)
+
+func _remember_window_size() -> void:
+	var s := get_window().size
+	save_data["settings"]["window_size"] = [s.x, s.y]
+	_save_now()
+
+func _restore_window_size() -> void:
+	if is_web:
+		return
+	var saved: Variant = save_data["settings"].get("window_size", [])
+	if typeof(saved) != TYPE_ARRAY or saved.size() != 2:
+		return
+	var win := get_window()
+	var area := DisplayServer.screen_get_usable_rect(win.current_screen)
+	var target := Vector2i(int(saved[0]), int(saved[1])).clamp(win.min_size, area.size.max(win.min_size))
+	if target == win.size:
+		return
+	win.size = target
+	win.move_to_center()
 
 func _on_minimize_pressed() -> void:
 	get_window().mode = Window.MODE_MINIMIZED
@@ -679,6 +772,7 @@ func _build_help_window() -> void:
 	var tips := [
 		"点击池塘水面，或按“甩杆”，开始一次专注。",
 		"专注和休息时间可以在左侧直接调整，开始后会锁定。",
+		"钓竿右上角可切换“倒计时 / 正计时”：正计时从 0 往上数，想停时点“收竿”，满 1 分钟就有收获。",
 		"专注完成会自动钓获奖励，并进入休息倒计时。",
 		"写下今日任务，完成任务会让森林里多长一棵树。",
 		"专注（满 5 分钟）和完成任务都会得到贝壳，顶栏点贝壳就能逛商店。",
@@ -687,6 +781,8 @@ func _build_help_window() -> void:
 		"点水面喂鱼，点鱼看它是谁；缸里冒出的珍珠泡泡，点一下收集贝壳。",
 		"“全屏”收起下方控制台，让场景占满屏幕（水族馆在右上角，池塘 / 森林在右下角）。",
 	]
+	if not is_web:
+		tips.append("拖动窗口的右边、下边或右下角可以调整窗口大小，下次打开会记住。")
 	# 条目多了，手机竖屏（卡片限高 560）放不下，交给滚动容器
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -1231,7 +1327,7 @@ func _update_timer_chip() -> void:
 	if not timer_chip.visible:
 		return
 	var names := {"focusing": "专注中", "break": "休息中", "paused": "暂停中"}
-	var secs := pomodoro_panel.seconds_left
+	var secs := pomodoro_panel.display_seconds()
 	timer_chip_label.text = "%s %02d:%02d" % [String(names.get(state, "")), secs / 60, secs % 60]
 
 # ================= Web 全面屏 =================
