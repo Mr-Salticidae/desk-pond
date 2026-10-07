@@ -33,10 +33,13 @@ func setup(task: Dictionary) -> void:
 	title_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	add_child(title_label)
 
+	# 行内小操作：平时只留淡淡的文字，悬停才浮出底色，不再一行两个带框的小方块
 	var edit_button := Button.new()
 	edit_button.text = "改"
 	edit_button.tooltip_text = "编辑任务"
 	edit_button.custom_minimum_size = Vector2(30, 26)
+	edit_button.focus_mode = Control.FOCUS_NONE
+	UITheme.style_row_action(edit_button)
 	edit_button.pressed.connect(func(): edit_requested.emit(task_id, task_title))
 	add_child(edit_button)
 
@@ -44,14 +47,17 @@ func setup(task: Dictionary) -> void:
 	delete_button.text = "×"
 	delete_button.tooltip_text = "删除"
 	delete_button.custom_minimum_size = Vector2(30, 26)
+	delete_button.focus_mode = Control.FOCUS_NONE
+	UITheme.style_row_action(delete_button, true)
 	delete_button.pressed.connect(func(): delete_requested.emit(task_id))
 	add_child(delete_button)
 
+# 每一行是一块圆角浅底（和输入框、按钮同一层底色），不描边；完成的行更淡
 func _draw() -> void:
-	var fill := UITheme.SURFACE_2 if not is_done else Color(0.906, 0.910, 0.882)
-	var rect := Rect2(Vector2(0, 1), size - Vector2(0, 2))
-	draw_rect(rect, fill)
-	draw_rect(rect, UITheme.LINE, false, 1.0)
+	var box := StyleBoxFlat.new()
+	box.bg_color = UITheme.FILL if not is_done else UITheme.FILL_DISABLED
+	box.set_corner_radius_all(UITheme.CONTROL_RADIUS)
+	box.draw(get_canvas_item(), Rect2(Vector2(0, 1), size - Vector2(0, 2)))
 	if is_done:
 		# 完成的任务画一道淡淡的删除线
 		var mid := size.y * 0.5

@@ -32,12 +32,12 @@ var elapsed_seconds := 0
 # 最近一次完成的专注有多长（秒）：倒计时 = 设定时长，正计时 = 实际时长。贝壳按它算。
 var last_focus_seconds := 0
 var mode_label: Label
-var mode_button: Button
+var mode_switch: SegmentedControl
 var time_label: Label
 var progress_bar: ProgressBar
 var focus_label: Label
-var focus_spin: SpinBox
-var break_spin: SpinBox
+var focus_spin: Stepper
+var break_spin: Stepper
 var start_button: Button
 var pause_button: Button
 var reset_button: Button
@@ -97,8 +97,8 @@ func finish_count_up() -> void:
 func set_count_up(on: bool) -> void:
 	# 跑起来以后不许换方式，和专注 / 休息时长一样锁定
 	if on == count_up or not (state == "idle" or state == "completed"):
-		if mode_button:
-			mode_button.set_pressed_no_signal(count_up)
+		if mode_switch:
+			mode_switch.set_selected_no_signal(1 if count_up else 0)
 		return
 	count_up = on
 	elapsed_seconds = 0
@@ -208,14 +208,12 @@ func _build_ui() -> void:
 	title.add_theme_color_override("font_color", UITheme.INK)
 	title_row.add_child(title)
 
-	# 倒计时 / 正计时切换：小号按钮嵌在标题行里，不额外占一行高度
-	mode_button = Button.new()
-	mode_button.toggle_mode = true
-	mode_button.focus_mode = Control.FOCUS_NONE
-	mode_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	UITheme.style_pill(mode_button)
-	mode_button.toggled.connect(set_count_up)
-	title_row.add_child(mode_button)
+	# 倒计时 / 正计时：苹果式分段控件嵌在标题行里，不额外占一行高度
+	mode_switch = SegmentedControl.new()
+	mode_switch.setup(["倒计时", "正计时"])
+	mode_switch.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	mode_switch.changed.connect(func(i: int): set_count_up(i == 1))
+	title_row.add_child(mode_switch)
 
 	mode_label = Label.new()
 	mode_label.add_theme_color_override("font_color", UITheme.INK_SOFT)
@@ -234,13 +232,13 @@ func _build_ui() -> void:
 	focus_label.add_theme_color_override("font_color", UITheme.INK_SOFT)
 	settings_grid.add_child(focus_label)
 
-	focus_spin = SpinBox.new()
+	# 「− 25 分钟 +」步进器：加减和数值在同一块浅底里；中间能直接输入，滚轮 / 按住 ± 也能调
+	focus_spin = Stepper.new()
 	focus_spin.min_value = MIN_FOCUS_MINUTES
 	focus_spin.max_value = MAX_FOCUS_MINUTES
-	focus_spin.step = 1
-	focus_spin.value = 25
 	focus_spin.suffix = " 分钟"
-	focus_spin.custom_minimum_size = Vector2(102, 0)
+	focus_spin.set_value_no_signal(25)
+	focus_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	focus_spin.value_changed.connect(func(_value: float): _on_duration_changed())
 	settings_grid.add_child(focus_spin)
 
@@ -249,13 +247,12 @@ func _build_ui() -> void:
 	break_label.add_theme_color_override("font_color", UITheme.INK_SOFT)
 	settings_grid.add_child(break_label)
 
-	break_spin = SpinBox.new()
+	break_spin = Stepper.new()
 	break_spin.min_value = MIN_BREAK_MINUTES
 	break_spin.max_value = MAX_BREAK_MINUTES
-	break_spin.step = 1
-	break_spin.value = 5
 	break_spin.suffix = " 分钟"
-	break_spin.custom_minimum_size = Vector2(102, 0)
+	break_spin.set_value_no_signal(5)
+	break_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	break_spin.value_changed.connect(func(_value: float): _on_duration_changed())
 	settings_grid.add_child(break_spin)
 
@@ -270,7 +267,7 @@ func _build_ui() -> void:
 	progress_bar.max_value = 100
 	progress_bar.value = 0
 	progress_bar.show_percentage = false
-	progress_bar.custom_minimum_size = Vector2(0, 8)
+	progress_bar.custom_minimum_size = Vector2(0, 6)
 	UITheme.style_progress(progress_bar)
 	root.add_child(progress_bar)
 
@@ -332,11 +329,10 @@ func _apply_state(new_state: String) -> void:
 		start_button.tooltip_text = "结束这次专注并结算（满 1 分钟才有收获）" if can_reel else "甩杆并开始一次专注"
 	if reset_button:
 		reset_button.disabled = state == "idle"
-	if mode_button:
-		mode_button.set_pressed_no_signal(count_up)
-		mode_button.text = "正计时" if count_up else "倒计时"
-		mode_button.tooltip_text = "当前：正计时，从 0 往上数，自己收竿\n点一下切回倒计时" if count_up else "当前：倒计时，按设定的专注时长\n点一下切到正计时"
-		mode_button.disabled = not settings_editable
+	if mode_switch:
+		mode_switch.set_selected_no_signal(1 if count_up else 0)
+		mode_switch.set_tooltip(("正计时：从 0 往上数，自己收竿" if count_up else "倒计时：按设定的专注时长") + ("" if settings_editable else "\n（计时中不能切换）"))
+		mode_switch.set_enabled(settings_editable)
 	# 正计时没有目标时长，专注分钟数用不上，先收起来
 	if focus_label:
 		focus_label.visible = not count_up

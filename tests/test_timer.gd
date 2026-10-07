@@ -111,7 +111,7 @@ func _test_mode_locked_while_running() -> void:
 	var t := _timer({"count_up": true})
 	t.start_focus()
 	t.set_count_up(false)
-	_check(t.count_up and t.mode_button.disabled, "专注中不能切换计时方式")
+	_check(t.count_up and not t.mode_switch.enabled, "专注中不能切换计时方式")
 	t.reset_timer()
 	t.set_count_up(false)
 	_check(not t.count_up and t.focus_spin.visible, "待机时可以切回倒计时")
@@ -124,7 +124,7 @@ func _test_settings_roundtrip() -> void:
 	_check(last_settings == {"focus_minutes": 30, "break_minutes": 7, "count_up": true}, "设置里带上计时方式")
 	t.free()
 	var t2 := _timer(last_settings)
-	_check(t2.count_up and t2.mode_button.button_pressed and t2.mode_button.text == "正计时", "按存档恢复正计时")
+	_check(t2.count_up and t2.mode_switch.selected == 1, "按存档恢复正计时")
 	t2.free()
 
 # Web 切后台会冻结 tick：按真实时钟补算已走的秒数

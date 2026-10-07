@@ -22,6 +22,17 @@ const DANGER := Color(0.776, 0.380, 0.318)         # 关闭 / 删除的危险提
 
 const RADIUS := 6
 
+# ---- 苹果式控件（v0.7）：控件不描边，只靠一层很淡的墨色底区分；圆角统一 ----
+# 底色用带透明度的墨色叠在纸面上（≈ iOS 的 tertiarySystemFill），放在任何浅色面板上都协调。
+const CONTROL_RADIUS := 8
+const PANEL_RADIUS := 10
+const FILL := Color(0.157, 0.200, 0.200, 0.065)          # 控件底
+const FILL_HOVER := Color(0.157, 0.200, 0.200, 0.10)     # 悬停
+const FILL_PRESSED := Color(0.157, 0.200, 0.200, 0.15)   # 按下
+const FILL_DISABLED := Color(0.157, 0.200, 0.200, 0.04)  # 禁用：形状不变，只是更淡
+const SEGMENT_ON := Color(1.0, 0.996, 0.984)             # 分段控件选中块（近白，浮起）
+const CLEAR := Color(0, 0, 0, 0)
+
 # ---- StyleBox 工厂 ----
 
 static func _flat(fill: Color, border: Color, border_width: int, radius: int, pad: Vector4i) -> StyleBoxFlat:
@@ -42,8 +53,9 @@ static func _flat(fill: Color, border: Color, border_width: int, radius: int, pa
 	style.content_margin_bottom = pad.w
 	return style
 
+# 面板：纸面实底、不描边（深色背景上本来就分得清），圆角放大一点更柔和
 static func panel_style(fill: Color = SURFACE) -> StyleBoxFlat:
-	return _flat(fill, LINE, 1, RADIUS, Vector4i(14, 12, 14, 12))
+	return _flat(fill, CLEAR, 0, PANEL_RADIUS, Vector4i(14, 12, 14, 12))
 
 static func card_style() -> StyleBoxFlat:
 	# 卡片整体外框：纸面 + 极淡描边，无圆角顶部由标题栏盖住
@@ -65,9 +77,11 @@ static func chip_style() -> StyleBoxFlat:
 	c.a = 0.86
 	return _flat(c, LINE_CHROME, 1, RADIUS, Vector4i(8, 4, 8, 4))
 
+# 输入框：平时只是一块浅底；聚焦时底色提亮、外圈一道淡淡的水色光环（苹果的 focus ring）
 static func input_style(focused: bool = false) -> StyleBoxFlat:
-	var border := POND if focused else LINE
-	return _flat(Color(1.0, 0.992, 0.965) if focused else SURFACE_2, border, 1 if not focused else 2, 5, Vector4i(10, 7, 10, 7))
+	if not focused:
+		return _flat(FILL, CLEAR, 0, CONTROL_RADIUS, Vector4i(10, 7, 10, 7))
+	return _flat(Color(1.0, 0.996, 0.984), Color(POND, 0.55), 2, CONTROL_RADIUS, Vector4i(10, 7, 10, 7))
 
 # ---- 按钮风格 ----
 
@@ -78,48 +92,101 @@ static func _button_set(target: Control, normal: StyleBoxFlat, hover: StyleBoxFl
 	target.add_theme_stylebox_override("disabled", disabled)
 	target.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 
-# 幽灵按钮：纸面上的次要操作，扁平 + 发丝描边
+# 次要按钮：纸面上的一块浅底，不描边；悬停 / 按下只是底色加深；
+# 禁用时形状不变、只是更淡（不再换成另一种带框的灰盒子）
+static func _ghost_boxes(pad: Vector4i) -> Array:
+	return [
+		_flat(FILL, CLEAR, 0, CONTROL_RADIUS, pad),
+		_flat(FILL_HOVER, CLEAR, 0, CONTROL_RADIUS, pad),
+		_flat(FILL_PRESSED, CLEAR, 0, CONTROL_RADIUS, pad),
+		_flat(FILL_DISABLED, CLEAR, 0, CONTROL_RADIUS, pad),
+	]
+
 static func style_ghost(target: Control) -> void:
-	var pad := Vector4i(12, 7, 12, 7)
-	_button_set(
-		target,
-		_flat(SURFACE_2, LINE, 1, 5, pad),
-		_flat(Color(0.945, 0.933, 0.898), Color(0.157, 0.200, 0.200, 0.30), 1, 5, pad),
-		_flat(SURFACE_3, Color(0.157, 0.200, 0.200, 0.30), 1, 5, pad),
-		_flat(SURFACE_2, LINE, 1, 5, pad)
-	)
+	var b := _ghost_boxes(Vector4i(12, 7, 12, 7))
+	_button_set(target, b[0], b[1], b[2], b[3])
 	target.add_theme_color_override("font_color", INK)
 	target.add_theme_color_override("font_hover_color", INK)
 	target.add_theme_color_override("font_pressed_color", INK)
 	target.add_theme_color_override("font_disabled_color", INK_FAINT)
 
-# 小号幽灵按钮：嵌在标题行里的开关，内边距和字号都压小，不把行高撑高
+# 小号次要按钮：嵌在标题行里，内边距和字号都压小，不把行高撑高
 static func style_pill(target: Control) -> void:
 	style_ghost(target)
-	var pad := Vector4i(8, 1, 8, 1)
-	_button_set(
-		target,
-		_flat(SURFACE_2, LINE, 1, 5, pad),
-		_flat(Color(0.945, 0.933, 0.898), Color(0.157, 0.200, 0.200, 0.30), 1, 5, pad),
-		_flat(SURFACE_3, Color(0.157, 0.200, 0.200, 0.30), 1, 5, pad),
-		_flat(SURFACE_2, LINE, 1, 5, pad)
-	)
+	var b := _ghost_boxes(Vector4i(8, 1, 8, 1))
+	_button_set(target, b[0], b[1], b[2], b[3])
 	target.add_theme_font_size_override("font_size", 12)
 
-# 主操作按钮：陶土暖色实底，每个界面仅用于最重要的一个动作
+# 主操作按钮：陶土暖色实底，每个界面仅用于最重要的一个动作；禁用时和次要按钮的禁用态一致
 static func style_primary(target: Control) -> void:
 	var pad := Vector4i(14, 7, 14, 7)
 	_button_set(
 		target,
-		_flat(ACCENT, ACCENT, 0, 5, pad),
-		_flat(Color(0.867, 0.561, 0.396), ACCENT, 0, 5, pad),
-		_flat(ACCENT_DEEP, ACCENT_DEEP, 0, 5, pad),
-		_flat(Color(0.812, 0.776, 0.741), Color(0.812, 0.776, 0.741), 0, 5, pad)
+		_flat(ACCENT, CLEAR, 0, CONTROL_RADIUS, pad),
+		_flat(Color(0.867, 0.561, 0.396), CLEAR, 0, CONTROL_RADIUS, pad),
+		_flat(ACCENT_DEEP, CLEAR, 0, CONTROL_RADIUS, pad),
+		_flat(FILL_DISABLED, CLEAR, 0, CONTROL_RADIUS, pad)
 	)
 	target.add_theme_color_override("font_color", ACCENT_INK)
 	target.add_theme_color_override("font_hover_color", ACCENT_INK)
 	target.add_theme_color_override("font_pressed_color", Color(0.984, 0.945, 0.886))
-	target.add_theme_color_override("font_disabled_color", Color(0.953, 0.945, 0.918, 0.7))
+	target.add_theme_color_override("font_disabled_color", INK_FAINT)
+
+# ---- 分段控件 / 步进器（见 ui_segmented.gd / ui_stepper.gd） ----
+
+# 分段控件的底槽：一条浅底，内缩 2 px 让选中块「嵌」在里面
+static func segment_track_style() -> StyleBoxFlat:
+	return _flat(FILL, CLEAR, 0, CONTROL_RADIUS, Vector4i(2, 2, 2, 2))
+
+# 分段：未选中透明、文字偏灰；选中是浮起的近白块（带一点点阴影），文字转深
+static func style_segment(target: Button, font_size := 12) -> void:
+	var pad := Vector4i(9, 2, 9, 2)
+	var on := _flat(SEGMENT_ON, CLEAR, 0, CONTROL_RADIUS - 2, pad)
+	on.shadow_color = Color(0.157, 0.200, 0.200, 0.14)
+	on.shadow_size = 2
+	on.shadow_offset = Vector2(0, 1)
+	target.add_theme_stylebox_override("normal", _flat(CLEAR, CLEAR, 0, CONTROL_RADIUS - 2, pad))
+	target.add_theme_stylebox_override("hover", _flat(Color(0.157, 0.200, 0.200, 0.05), CLEAR, 0, CONTROL_RADIUS - 2, pad))
+	target.add_theme_stylebox_override("pressed", on)
+	target.add_theme_stylebox_override("hover_pressed", on)
+	target.add_theme_stylebox_override("disabled", _flat(CLEAR, CLEAR, 0, CONTROL_RADIUS - 2, pad))
+	target.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	target.add_theme_color_override("font_color", INK_SOFT)
+	target.add_theme_color_override("font_hover_color", INK)
+	target.add_theme_color_override("font_pressed_color", INK)
+	target.add_theme_color_override("font_hover_pressed_color", INK)
+	target.add_theme_font_size_override("font_size", font_size)
+
+# 步进器整体：一块浅底装下「− 数值 +」
+static func stepper_track_style() -> StyleBoxFlat:
+	return _flat(FILL, CLEAR, 0, CONTROL_RADIUS, Vector4i(0, 0, 0, 0))
+
+# 步进器两端的 − / +：透明底，悬停 / 按下才浮出一块更深的底
+static func style_stepper_button(target: Button) -> void:
+	var pad := Vector4i(6, 2, 6, 2)
+	_button_set(
+		target,
+		_flat(CLEAR, CLEAR, 0, CONTROL_RADIUS, pad),
+		_flat(FILL_HOVER, CLEAR, 0, CONTROL_RADIUS, pad),
+		_flat(FILL_PRESSED, CLEAR, 0, CONTROL_RADIUS, pad),
+		_flat(CLEAR, CLEAR, 0, CONTROL_RADIUS, pad)
+	)
+	target.add_theme_color_override("font_color", INK_SOFT)
+	target.add_theme_color_override("font_hover_color", INK)
+	target.add_theme_color_override("font_pressed_color", INK)
+	target.add_theme_color_override("font_disabled_color", Color(INK_FAINT, 0.5))
+	target.add_theme_font_size_override("font_size", 16)
+
+# 步进器中间的数值：没有自己的底和框（和两端共用外面那块浅底），聚焦输入时才亮一圈
+static func style_stepper_field(field: LineEdit) -> void:
+	var pad := Vector4i(2, 5, 2, 5)
+	field.add_theme_stylebox_override("normal", _flat(CLEAR, CLEAR, 0, CONTROL_RADIUS, pad))
+	field.add_theme_stylebox_override("read_only", _flat(CLEAR, CLEAR, 0, CONTROL_RADIUS, pad))
+	field.add_theme_stylebox_override("focus", _flat(Color(1.0, 0.996, 0.984), Color(POND, 0.55), 2, CONTROL_RADIUS, pad))
+	field.add_theme_color_override("font_color", INK)
+	field.add_theme_color_override("font_uneditable_color", INK_SOFT)
+	field.add_theme_color_override("caret_color", POND)
+	field.add_theme_color_override("selection_color", Color(0.819, 0.510, 0.346, 0.35))
 
 # 深色外壳上的按钮：透明底 + 浅色文字，悬停才浮现淡描边。
 # compact：手机竖屏顶栏只有 400 设计像素宽，收窄左右内边距。
@@ -151,9 +218,77 @@ static func style_input(line_edit: LineEdit) -> void:
 
 # ---- 进度条 ----
 
+# 列表行里的小操作（任务的「改」「×」）：平时透明只留文字，悬停才浮出一块浅底；删除悬停转红
+static func style_row_action(target: Button, danger := false) -> void:
+	var pad := Vector4i(6, 2, 6, 2)
+	_button_set(
+		target,
+		_flat(CLEAR, CLEAR, 0, CONTROL_RADIUS - 2, pad),
+		_flat(Color(DANGER, 0.12) if danger else FILL_HOVER, CLEAR, 0, CONTROL_RADIUS - 2, pad),
+		_flat(Color(DANGER, 0.2) if danger else FILL_PRESSED, CLEAR, 0, CONTROL_RADIUS - 2, pad),
+		_flat(CLEAR, CLEAR, 0, CONTROL_RADIUS - 2, pad)
+	)
+	target.add_theme_color_override("font_color", INK_FAINT)
+	target.add_theme_color_override("font_hover_color", DANGER if danger else INK)
+	target.add_theme_color_override("font_pressed_color", DANGER if danger else INK)
+
+# ---- 勾选圈 / 开关：逐像素画（带抗锯齿），替代引擎默认的灰方块和深灰开关 ----
+
+static var _icons := {}
+
+static func _icon(key: String, w: int, h: int, sample: Callable) -> ImageTexture:
+	if _icons.has(key):
+		return _icons[key]
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	for y in range(h):
+		for x in range(w):
+			img.set_pixel(x, y, sample.call(Vector2(x + 0.5, y + 0.5)))
+	var tex := ImageTexture.create_from_image(img)
+	_icons[key] = tex
+	return tex
+
+# src 叠在 dst 上（预乘前的普通 alpha 混合）
+static func _over(dst: Color, src: Color) -> Color:
+	var a := src.a + dst.a * (1.0 - src.a)
+	if a <= 0.0:
+		return CLEAR
+	var k := dst.a * (1.0 - src.a)
+	return Color((src.r * src.a + dst.r * k) / a, (src.g * src.a + dst.g * k) / a, (src.b * src.a + dst.b * k) / a, a)
+
+static func _seg_dist(p: Vector2, a: Vector2, b: Vector2) -> float:
+	var ab := b - a
+	var t := clampf((p - a).dot(ab) / ab.length_squared(), 0.0, 1.0)
+	return p.distance_to(a + ab * t)
+
+# 任务勾选：没勾是一圈淡墨色细环，勾上是水色实心圆 + 白勾（苹果「提醒事项」的样子）
+static func check_icon(checked: bool, disabled := false) -> ImageTexture:
+	var fade := 0.5 if disabled else 1.0
+	return _icon("check_%s_%s" % [checked, disabled], 18, 18, func(p: Vector2) -> Color:
+		var d := p.distance_to(Vector2(9, 9))
+		if not checked:
+			return Color(INK, 0.38 * fade * clampf(0.8 - absf(d - 7.2), 0.0, 1.0))
+		var c := Color(POND, fade * clampf(8.0 - d, 0.0, 1.0))
+		var m := minf(_seg_dist(p, Vector2(5.2, 9.3), Vector2(7.8, 11.9)), _seg_dist(p, Vector2(7.8, 11.9), Vector2(12.9, 6.6)))
+		return _over(c, Color(1, 1, 1, fade * clampf(1.9 - m, 0.0, 1.0) * clampf(8.0 - d, 0.0, 1.0)))
+	)
+
+# 开关：胶囊底槽 + 白色圆钮；开 = 水色、钮在右，关 = 浅墨色、钮在左
+static func switch_icon(on: bool, disabled := false) -> ImageTexture:
+	var fade := 0.5 if disabled else 1.0
+	return _icon("switch_%s_%s" % [on, disabled], 36, 20, func(p: Vector2) -> Color:
+		var cover := clampf(0.5 - (_seg_dist(p, Vector2(10, 10), Vector2(26, 10)) - 9.0), 0.0, 1.0)
+		var track := Color(POND, fade * cover) if on else Color(INK, 0.18 * fade * cover)
+		var knob_c := Vector2(26, 10) if on else Vector2(10, 10)
+		var kd := p.distance_to(knob_c)
+		var shadow := Color(INK, 0.16 * fade * clampf(8.6 - p.distance_to(knob_c + Vector2(0, 0.6)), 0.0, 1.0))
+		var knob := Color(1, 1, 1, fade * clampf(7.6 - kd, 0.0, 1.0))
+		return _over(_over(track, shadow), knob)
+	)
+
+# 进度条：细长胶囊，底槽和控件同一层浅底
 static func style_progress(bar: ProgressBar) -> void:
-	bar.add_theme_stylebox_override("background", _flat(SURFACE_3, Color(0, 0, 0, 0), 0, 6, Vector4i.ZERO))
-	bar.add_theme_stylebox_override("fill", _flat(POND, Color(0, 0, 0, 0), 0, 6, Vector4i.ZERO))
+	bar.add_theme_stylebox_override("background", _flat(FILL, CLEAR, 0, 3, Vector4i.ZERO))
+	bar.add_theme_stylebox_override("fill", _flat(POND, CLEAR, 0, 3, Vector4i.ZERO))
 
 # ---- 全局主题：让整棵 UI 树共享极简底色 ----
 
@@ -198,12 +333,12 @@ static func make_theme() -> Theme:
 	# 文本
 	t.set_color("font_color", "Label", INK)
 
-	# 默认按钮 = 幽灵风格
-	var pad := Vector4i(12, 7, 12, 7)
-	t.set_stylebox("normal", "Button", _flat(SURFACE_2, LINE, 1, 5, pad))
-	t.set_stylebox("hover", "Button", _flat(Color(0.945, 0.933, 0.898), Color(0.157, 0.200, 0.200, 0.30), 1, 5, pad))
-	t.set_stylebox("pressed", "Button", _flat(SURFACE_3, Color(0.157, 0.200, 0.200, 0.30), 1, 5, pad))
-	t.set_stylebox("disabled", "Button", _flat(Color(0.918, 0.906, 0.882), LINE, 1, 5, pad))
+	# 默认按钮 = 次要按钮：浅底、不描边，禁用时只是更淡
+	var b := _ghost_boxes(Vector4i(12, 7, 12, 7))
+	t.set_stylebox("normal", "Button", b[0])
+	t.set_stylebox("hover", "Button", b[1])
+	t.set_stylebox("pressed", "Button", b[2])
+	t.set_stylebox("disabled", "Button", b[3])
 	t.set_stylebox("focus", "Button", StyleBoxEmpty.new())
 	t.set_color("font_color", "Button", INK)
 	t.set_color("font_hover_color", "Button", INK)
@@ -221,7 +356,27 @@ static func make_theme() -> Theme:
 	# 面板
 	t.set_stylebox("panel", "PanelContainer", panel_style())
 
-	# 勾选类
+	# 勾选类：勾选圈 / 胶囊开关用逐像素画的图标；勾选框本身不要底和框
+	var empty := _flat(CLEAR, CLEAR, 0, CONTROL_RADIUS, Vector4i(2, 2, 2, 2))
+	for st in ["normal", "hover", "pressed", "hover_pressed", "disabled"]:
+		t.set_stylebox(st, "CheckBox", empty)
+	t.set_stylebox("focus", "CheckBox", StyleBoxEmpty.new())
+	t.set_icon("checked", "CheckBox", check_icon(true))
+	t.set_icon("unchecked", "CheckBox", check_icon(false))
+	t.set_icon("checked_disabled", "CheckBox", check_icon(true, true))
+	t.set_icon("unchecked_disabled", "CheckBox", check_icon(false, true))
+	# 开关做成设置列表里的一行：浅底圆角，开 / 关不改底色
+	var row := _ghost_boxes(Vector4i(10, 6, 10, 6))
+	t.set_stylebox("normal", "CheckButton", row[0])
+	t.set_stylebox("hover", "CheckButton", row[1])
+	t.set_stylebox("pressed", "CheckButton", row[0])
+	t.set_stylebox("hover_pressed", "CheckButton", row[1])
+	t.set_stylebox("disabled", "CheckButton", row[3])
+	t.set_stylebox("focus", "CheckButton", StyleBoxEmpty.new())
+	t.set_icon("checked", "CheckButton", switch_icon(true))
+	t.set_icon("unchecked", "CheckButton", switch_icon(false))
+	t.set_icon("checked_disabled", "CheckButton", switch_icon(true, true))
+	t.set_icon("unchecked_disabled", "CheckButton", switch_icon(false, true))
 	t.set_color("font_color", "CheckBox", INK)
 	t.set_color("font_hover_color", "CheckBox", INK)
 	t.set_color("font_pressed_color", "CheckBox", INK)
