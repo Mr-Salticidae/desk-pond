@@ -13,6 +13,18 @@ const RIPPLE_COLOR := Color(0.82, 0.94, 0.93, 0.70)
 const FISH_SHADOW := Color(0.10, 0.34, 0.43, 0.40)
 const HOVER_TINT := Color(1.0, 0.96, 0.62, 0.16)
 const STATUS_INK := Color(0.15, 0.20, 0.24)
+const MOON_ROWS := [
+	"...####.",
+	".####...",
+	".###....",
+	"###.....",
+	"###.....",
+	"###.....",
+	"###.....",
+	".###....",
+	".####...",
+	"...####.",
+]
 
 var status_label: Label
 var fishing_active := false
@@ -145,10 +157,15 @@ func _draw_night_sky(w: float, h: float, night: float) -> void:
 		var sy := 8.0 + fmod(i * 37.0, h * 0.30)
 		var twinkle := 0.55 + 0.45 * sin(phase * 3.0 + i * 1.7)
 		_pixel_rect(Vector2(sx, sy), Vector2(2, 2), Color(1.0, 0.97, 0.85, night * twinkle))
-	# 弯月：放在池塘上方偏右的空天里（右上角会被树冠挡住）；先画满月，再用天色盖掉一角
-	var moon := Vector2(w * 0.62, 10.0)
-	_pixel_rect(moon, Vector2(12, 12), Color(0.98, 0.94, 0.78, night))
-	_pixel_rect(moon + Vector2(4, -2), Vector2(10, 11), Color(DayCycle.sky, night))
+	# 弯月：放在池塘上方偏右的空天里（右上角会被树冠挡住）。逐格画一弯「C」形，每格 2 px；
+	# 不能用「满月盖掉一角」的偷懒画法——实际尺寸下会变成一个 L 字
+	var moon := Vector2(w * 0.62, 8.0)
+	var moon_color := Color(0.98, 0.94, 0.78, night)
+	for row in range(MOON_ROWS.size()):
+		var line: String = MOON_ROWS[row]
+		for col in range(line.length()):
+			if line[col] == "#":
+				_pixel_rect(moon + Vector2(col * 2, row * 2), Vector2(2, 2), moon_color)
 
 # 夜里还在甩竿的人，屏幕也亮着
 func _draw_monitor_glow(w: float, h: float, night: float) -> void:
