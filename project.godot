@@ -23,6 +23,7 @@ config/icon="res://assets/icon.png"
 [autoload]
 
 Audio="*res://scripts/audio_manager.gd"
+DayCycle="*res://scripts/day_cycle.gd"
 WebInput="*res://scripts/web_text_input.gd"
 WebShell="*res://scripts/web_shell.gd"
 

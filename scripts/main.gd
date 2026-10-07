@@ -26,6 +26,11 @@ var mute_button: Button
 var catalog_view: Control
 var collection_list: VBoxContainer
 var help_window: Window
+var help_button: Button
+var update_dot: Panel
+var update_banner: PanelContainer
+var update_label: Label
+var _update_http: HTTPRequest
 var ledger_window: Window
 var ledger_body: VBoxContainer
 
@@ -41,6 +46,7 @@ var aquarium_submode := "tank"
 
 # 生态缸：贝壳 / 布置 / 商店 / 生态报告
 var eco: EcoTank
+var daily_log: DailyLog
 var eco_eval: Dictionary = {}
 var _eco_back_pay := 0
 var shells_button: Button
@@ -81,6 +87,15 @@ var _resizing := false
 var _resize_dir := Vector2i.ZERO      # (1, 0) 拖右边，(0, 1) 拖下边，(1, 1) 拖右下角
 var _resize_anchor := Vector2i.ZERO   # 按下时鼠标的屏幕坐标
 var _resize_start_size := Vector2i.ZERO
+var _resize_handles: Array = []
+
+# 角落小窗（桌面版）：同一个窗口切两套布局，不另开 Window，省得处理两个窗口的焦点和置顶。
+# 设计见 docs/设计_v0.7_小窗与昼夜.md 第三节。
+const FULL_DESIGN_SIZE := Vector2i(640, 520)
+const MINI_MARGIN := 12
+var mini_bar: MiniBar
+var in_mini := false
+var _pending_rewards: Array = []   # 小窗里钓到的鱼，展开时补弹完整奖励
 
 # Web 版（B站 toy / 手机浏览器）：竖屏布局，去掉桌面窗口专属功能。
 # 桌面端调试手机布局：godot --path . -- --web-layout [--web-size=390x844] [--safe-area=44,0,34,0]
@@ -112,6 +127,9 @@ func _ready() -> void:
 	_apply_window_settings()
 	_restore_window_size()
 	_start_day_watch()
+	# 上次在小窗里关掉的，这次直接是小窗
+	if not is_web and bool(save_data["settings"]["mini"].get("on", false)):
+		call_deferred("_enter_mini", true)
 	# 从朋友的分享链接进来：先带他逛朋友的缸，玩法说明等回到自己池塘再弹
 	var incoming := WebShell.take_incoming_code()
 	var friend := EcoShare.decode(incoming, eco) if incoming != "" else {}
@@ -198,7 +216,8 @@ func _build_ui() -> void:
 	top_bar.add_child(spacer)
 
 	stats_label = Label.new()
-	stats_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# PASS 而不是 IGNORE：被压缩成省略号时悬停能看到完整数字；按下拖动照样冒泡给顶栏移动窗口
+	stats_label.mouse_filter = Control.MOUSE_FILTER_PASS
 	stats_label.add_theme_font_size_override("font_size", 13)
 	stats_label.add_theme_color_override("font_color", Color(0.878, 0.902, 0.855, 0.66))
 	# 统计文字同时是顶栏的弹性区：空间不足时先压缩它，
@@ -226,13 +245,27 @@ func _build_ui() -> void:
 	ledger_button.pressed.connect(_open_ledger_window)
 	top_bar.add_child(ledger_button)
 
-	var help_button := Button.new()
+	help_button = Button.new()
 	help_button.text = "?"
 	help_button.focus_mode = Control.FOCUS_NONE
 	help_button.tooltip_text = "查看玩法说明"
 	UITheme.style_chrome(help_button, false, is_web)
 	help_button.pressed.connect(_open_help_window)
 	top_bar.add_child(help_button)
+	# 有新版本时「?」右上角亮一个小点
+	update_dot = Panel.new()
+	update_dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var dot_style := StyleBoxFlat.new()
+	dot_style.bg_color = UITheme.ACCENT
+	dot_style.set_corner_radius_all(3)
+	update_dot.add_theme_stylebox_override("panel", dot_style)
+	update_dot.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	update_dot.offset_left = -9
+	update_dot.offset_top = 3
+	update_dot.offset_right = -3
+	update_dot.offset_bottom = 9
+	update_dot.visible = false
+	help_button.add_child(update_dot)
 
 	mute_button = Button.new()
 	mute_button.toggle_mode = true
@@ -245,8 +278,17 @@ func _build_ui() -> void:
 	mute_button.toggled.connect(_on_mute_toggled)
 	top_bar.add_child(mute_button)
 
-	# 置顶 / 最小化 / 关闭都是桌面窗口概念，Web 里没有意义
+	# 小窗 / 置顶 / 最小化 / 关闭都是桌面窗口概念，Web 里没有意义
 	if not is_web:
+		# 图标而不是文字：顶栏宽度预算很紧，多两个字就会把统计文字挤成省略号
+		var mini_button := Button.new()
+		mini_button.icon = _mini_icon_texture()
+		mini_button.focus_mode = Control.FOCUS_NONE
+		mini_button.tooltip_text = "小窗：缩成屏幕角落的一条（自动置顶），点「展开」回来"
+		UITheme.style_chrome(mini_button, false, true)
+		mini_button.pressed.connect(_enter_mini)
+		top_bar.add_child(mini_button)
+
 		always_on_top_button = Button.new()
 		always_on_top_button.toggle_mode = true
 		always_on_top_button.focus_mode = Control.FOCUS_NONE
@@ -371,6 +413,7 @@ func _build_ui() -> void:
 	_build_eco_windows()
 	_build_visit_layer()
 	_build_resize_handles()
+	_build_mini_bar()
 
 	room_tabs["pond"].set_pressed_no_signal(true)
 	_switch_room("pond")
@@ -384,9 +427,15 @@ func _setup_modules() -> void:
 	fishing_manager.set_fish_count(save_data.get("fish_count", {}))
 	tree_manager.set_growth_points(int(save_data.get("tree_growth_points", 0)))
 
+	# 每日记录：v0.7 起按天记账（只增不减），旧存档第一次打开时给今天补一行
+	var since := DailyLog.start(save_data, _today())
+	daily_log = DailyLog.new()
+	daily_log.bind(save_data["daily"], since)
+
 	# 生态缸绑定存档里的 eco 字典（按引用修改）；老玩家第一次打开时把过去的努力折成贝壳
 	eco = EcoTank.new()
 	eco.bind(save_data["eco"], fishing_manager.get_fish_data())
+	eco.on_earn = func(amount: int): daily_log.add_shells(_today(), amount)
 	_eco_back_pay = eco.migrate_legacy(save_data, _eco_ctx())
 	eco.grant_gifts(_eco_ctx())
 	eco.accrue_pearls(_today())
@@ -395,8 +444,11 @@ func _setup_modules() -> void:
 	task_panel.setup(save_data.get("tasks", []), int(save_data.get("tasks_completed", 0)), save_manager)
 
 	Audio.init_muted(bool(save_data["settings"].get("muted", false)))
+	DayCycle.set_mode(String(save_data["settings"].get("day_cycle", "auto")))
+	_schedule_update_check()
 
 	pomodoro_panel.focus_completed.connect(_on_focus_completed)
+	pomodoro_panel.break_completed.connect(_on_break_completed)
 	pomodoro_panel.state_changed.connect(_on_timer_state_changed)
 	pomodoro_panel.settings_changed.connect(_on_timer_settings_changed)
 	pixel_world.cast_requested.connect(_on_cast_requested)
@@ -429,6 +481,7 @@ func _on_focus_completed() -> void:
 	})
 	save_data["fish_count"] = fishing_manager.get_fish_count()
 	_record_first_caught(String(fish.get("id", "")))
+	daily_log.add_focus(_today(), pomodoro_panel.last_focus_seconds / 60, String(fish.get("id", "")))
 
 	# 生态缸：按专注分钟给贝壳；达成里程碑送装饰；条件满足的访客趁这次专注游进来
 	var extras: Array = []
@@ -445,12 +498,33 @@ func _on_focus_completed() -> void:
 	eco.accrue_pearls(_today())
 
 	pixel_world.play_focus_feedback()
-	reward_popup.show_reward(fish, extras)
+	if in_mini:
+		# 小窗里不弹完整奖励窗：冒一个 3 秒的气泡，展开时再补弹
+		var shell_note := String(extras[0]) if not extras.is_empty() and String(extras[0]).begins_with("+") else ""
+		mini_bar.show_toast("钓到「%s」%s" % [String(fish.get("name", "小鱼")), "  " + shell_note if shell_note != "" else ""])
+		_pending_rewards.append({"fish": fish, "extras": extras})
+	else:
+		reward_popup.show_reward(fish, extras)
 	Audio.play_chime()
 	get_tree().create_timer(0.28).timeout.connect(Audio.play_catch, CONNECT_ONE_SHOT)
+	_request_attention()
 	_render_collection()
 	_refresh_aquarium()
 	_save_now()
+
+# 休息结束：以前是静默回到待机，窗口被挡住时根本不知道该回来了
+func _on_break_completed() -> void:
+	Audio.play_break_end()
+	if pixel_world:
+		pixel_world.mark_rested()
+	_request_attention()
+
+# 到点时窗口不在前台：让任务栏按钮闪烁（macOS 是 Dock 图标跳动）。
+# 不抢焦点、不把窗口提到最前，不打断正在打字的人；不受静音影响——静音的人更需要它。
+func _request_attention() -> void:
+	if is_web or get_window().has_focus():
+		return
+	DisplayServer.window_request_attention(get_window().get_window_id())
 
 func _record_first_caught(fish_id: String) -> void:
 	if fish_id == "":
@@ -466,6 +540,7 @@ func _on_task_completed(_task: Dictionary) -> void:
 	save_data["tree_growth_points"] = tree_manager.growth_points
 	save_data["tree_stage"] = tree_manager.pond_tree_stage()
 	save_data["total_tasks_completed"] = int(save_data.get("total_tasks_completed", 0)) + 1
+	daily_log.add_task(_today())
 	if eco.task_reward(_today()) > 0:
 		_flash_shells()
 	_save_now()
@@ -671,6 +746,7 @@ func _make_resize_handle(dir: Vector2i, cursor: Control.CursorShape) -> Control:
 	handle.mouse_default_cursor_shape = cursor
 	handle.gui_input.connect(_on_resize_input.bind(dir))
 	add_child(handle)
+	_resize_handles.append(handle)
 	return handle
 
 func _on_resize_input(event: InputEvent, dir: Vector2i) -> void:
@@ -720,6 +796,117 @@ func _on_close_pressed() -> void:
 	_save_now()
 	get_tree().quit()
 
+# ================= 角落小窗 =================
+
+func _build_mini_bar() -> void:
+	if is_web:
+		return
+	mini_bar = MiniBar.new()
+	mini_bar.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	mini_bar.visible = false
+	add_child(mini_bar)
+	mini_bar.bind(pomodoro_panel)
+	mini_bar.expand_requested.connect(_exit_mini)
+	mini_bar.gui_input.connect(_on_mini_bar_input)
+
+# 进小窗：记下完整窗口的位置，收起完整界面，缩成小窗贴到屏幕角落并置顶。
+# at_startup：上次在小窗里关掉、这次启动直接进小窗——此时窗口是刚居中的，不能把它当成完整窗口的位置记下来。
+func _enter_mini(at_startup := false) -> void:
+	if is_web or in_mini or mini_bar == null:
+		return
+	var win := get_window()
+	var mini: Dictionary = save_data["settings"]["mini"]
+	if not at_startup:
+		mini["full_pos"] = [win.position.x, win.position.y]
+	in_mini = true
+	_close_cards()
+	# 正在逛朋友的缸：那层会盖住小窗，先退出来
+	if visit_layer and visit_layer.visible:
+		_close_visit(false)
+	root_box.visible = false
+	for h in _resize_handles:
+		h.visible = false
+	mini_bar.visible = true
+	# 内容按 1:1 画：不改设计尺寸的话，300×84 的窗口会把 640×520 的内容整个缩到看不清
+	win.min_size = MiniBar.SIZE
+	win.content_scale_size = MiniBar.SIZE
+	win.size = MiniBar.SIZE
+	win.position = _mini_position()
+	win.always_on_top = true
+	mini["on"] = true
+	_save_now()
+
+func _exit_mini() -> void:
+	if not in_mini:
+		return
+	var win := get_window()
+	var mini: Dictionary = save_data["settings"]["mini"]
+	in_mini = false
+	mini_bar.visible = false
+	root_box.visible = true
+	for h in _resize_handles:
+		h.visible = true
+	win.content_scale_size = FULL_DESIGN_SIZE
+	win.min_size = FULL_DESIGN_SIZE
+	var saved: Variant = save_data["settings"].get("window_size", [])
+	var target := FULL_DESIGN_SIZE
+	if typeof(saved) == TYPE_ARRAY and saved.size() == 2:
+		target = Vector2i(int(saved[0]), int(saved[1]))
+	var area := _virtual_usable_rect()
+	win.size = target.clamp(FULL_DESIGN_SIZE, area.size.max(FULL_DESIGN_SIZE))
+	var full_pos: Variant = mini.get("full_pos", [])
+	if typeof(full_pos) == TYPE_ARRAY and full_pos.size() == 2:
+		win.position = _clamp_window_to_screen(Vector2i(int(full_pos[0]), int(full_pos[1])))
+	else:
+		win.move_to_center()
+	_apply_window_settings()   # 置顶恢复成进小窗前的设置
+	mini["on"] = false
+	_save_now()
+	if not _pending_rewards.is_empty():
+		call_deferred("_show_pending_rewards")
+
+# 小窗位置：上次拖到哪就回哪（还在桌面内的话）；第一次进小窗贴到当前屏幕可用区域的右下角（避开任务栏）
+func _mini_position() -> Vector2i:
+	var saved: Variant = save_data["settings"]["mini"].get("pos", [])
+	if typeof(saved) == TYPE_ARRAY and saved.size() == 2:
+		var p := Vector2i(int(saved[0]), int(saved[1]))
+		if _virtual_usable_rect().encloses(Rect2i(p, MiniBar.SIZE)):
+			return p
+	var area := DisplayServer.screen_get_usable_rect(get_window().current_screen)
+	return area.end - MiniBar.SIZE - Vector2i(MINI_MARGIN, MINI_MARGIN)
+
+# 小窗整条都能拖（按钮除外），松手记住位置；双击展开
+func _on_mini_bar_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.double_click:
+		_dragging_window = false
+		_exit_mini()
+		return
+	_on_title_bar_input(event)
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed and in_mini:
+		var p := get_window().position
+		save_data["settings"]["mini"]["pos"] = [p.x, p.y]
+		_save_now()
+
+# 进小窗前收起所有弹出的卡片（含任务面板里的完整代办 / 编辑窗）：嵌入式子窗口放不进 300×84 的小窗
+func _close_cards() -> void:
+	for c in find_children("*", "Window", true, false):
+		if c.visible:
+			c.hide()
+
+# 展开时补弹小窗期间的收获：最后一条的完整奖励；钓了不止一次时，加一行汇总
+func _show_pending_rewards() -> void:
+	if _pending_rewards.is_empty():
+		return
+	var last: Dictionary = _pending_rewards.back()
+	var extras: Array = (last["extras"] as Array).duplicate()
+	if _pending_rewards.size() > 1:
+		var names: Array = []
+		for r in _pending_rewards:
+			names.append(String((r["fish"] as Dictionary).get("name", "")))
+		extras.insert(0, "小窗期间一共钓到 %d 条：%s" % [names.size(), "、".join(names)])
+	_pending_rewards.clear()
+	reward_popup.show_reward(last["fish"], extras)
+
 # 图鉴已并入水族馆：作为缸内「图鉴」子标签的内容，铺在场景区里。
 func _build_catalog_view() -> void:
 	if catalog_view != null:
@@ -763,6 +950,29 @@ func _build_help_window() -> void:
 	add_child(card)
 	help_window = card
 
+	# 新版本提示条：平时隐藏，查到新版时显示「有新版本 vX：说明 [去下载]」
+	update_banner = PanelContainer.new()
+	update_banner.add_theme_stylebox_override("panel", UITheme.chip_style())
+	update_banner.visible = false
+	card.body.add_child(update_banner)
+	var banner_row := HBoxContainer.new()
+	banner_row.add_theme_constant_override("separation", 8)
+	update_banner.add_child(banner_row)
+	update_label = Label.new()
+	update_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	update_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	update_label.add_theme_color_override("font_color", UITheme.INK_ON_CHROME)
+	banner_row.add_child(update_label)
+	var get_button := Button.new()
+	get_button.text = "去下载"
+	get_button.focus_mode = Control.FOCUS_NONE
+	UITheme.style_primary(get_button)
+	get_button.pressed.connect(func():
+		var latest: Dictionary = save_data["update"].get("latest", {})
+		OS.shell_open(String(latest.get("url", UpdateCheck.DEFAULT_PAGE)))
+	)
+	banner_row.add_child(get_button)
+
 	var intro := Label.new()
 	intro.text = "工位池塘，慢慢养成一天。"
 	intro.add_theme_font_size_override("font_size", 15)
@@ -781,8 +991,11 @@ func _build_help_window() -> void:
 		"点水面喂鱼，点鱼看它是谁；缸里冒出的珍珠泡泡，点一下收集贝壳。",
 		"“全屏”收起下方控制台，让场景占满屏幕（水族馆在右上角，池塘 / 森林在右下角）。",
 	]
+	tips.append("池塘、森林和水族馆跟着本地时间换天色：清晨、白天、黄昏、夜晚。只改画面，什么时候来都能收集到一样多的东西。")
 	if not is_web:
 		tips.append("拖动窗口的右边、下边或右下角可以调整窗口大小，下次打开会记住。")
+		tips.append("顶栏「小窗」把池塘缩成屏幕角落的一条，自动置顶；拖动可以挪位置，点「展开」或双击回来。")
+		tips.append("到点时窗口不在前台，任务栏按钮会闪一下；休息结束也会轻轻响一声。")
 	# 条目多了，手机竖屏（卡片限高 560）放不下，交给滚动容器
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -798,6 +1011,100 @@ func _build_help_window() -> void:
 		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		label.add_theme_color_override("font_color", UITheme.INK_SOFT)
 		list.add_child(label)
+	_build_settings_section(list)
+
+# 玩法说明底部的两个小设置
+func _build_settings_section(list: VBoxContainer) -> void:
+	list.add_child(HSeparator.new())
+	var title := Label.new()
+	title.text = "设置"
+	title.add_theme_font_size_override("font_size", 15)
+	title.add_theme_color_override("font_color", UITheme.INK)
+	list.add_child(title)
+
+	var day_toggle := _make_setting_toggle("昼夜跟随本地时间（关掉就一直是白天）")
+	day_toggle.set_pressed_no_signal(String(save_data["settings"].get("day_cycle", "auto")) == "auto")
+	day_toggle.toggled.connect(func(on: bool):
+		save_data["settings"]["day_cycle"] = "auto" if on else "day"
+		DayCycle.set_mode(save_data["settings"]["day_cycle"])
+		_save_now()
+	)
+	list.add_child(day_toggle)
+
+	if not is_web:
+		var update_toggle := _make_setting_toggle("启动时检查新版本（只读取一个版本号文件，不上传任何数据）")
+		update_toggle.set_pressed_no_signal(bool(save_data["settings"].get("update_check", true)))
+		update_toggle.toggled.connect(func(on: bool):
+			save_data["settings"]["update_check"] = on
+			_save_now()
+			_refresh_update_badge()
+		)
+		list.add_child(update_toggle)
+
+func _make_setting_toggle(text: String) -> CheckButton:
+	var t := CheckButton.new()
+	t.text = text
+	t.focus_mode = Control.FOCUS_NONE
+	t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for key in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color", "font_focus_color"]:
+		t.add_theme_color_override(key, UITheme.INK_SOFT)
+	return t
+
+# ================= 新版本提示（桌面版） =================
+
+# 每天最多查一次，启动后 10 秒再查，不拖慢启动；查不到（离线 / 超时 / 文件不在）就静默，下次启动再试
+func _schedule_update_check() -> void:
+	if is_web:
+		return
+	_refresh_update_badge()
+	if not bool(save_data["settings"].get("update_check", true)):
+		return
+	# 无头运行（测试 / CI）不联网
+	if DisplayServer.get_name() == "headless":
+		return
+	if String(save_data["update"].get("last_check", "")) == _today():
+		return
+	get_tree().create_timer(10.0).timeout.connect(_check_update, CONNECT_ONE_SHOT)
+
+func _check_update() -> void:
+	if _update_http != null or not bool(save_data["settings"].get("update_check", true)):
+		return
+	_update_http = HTTPRequest.new()
+	_update_http.timeout = 5.0
+	add_child(_update_http)
+	_update_http.request_completed.connect(_on_update_response)
+	if _update_http.request(UpdateCheck.URL) != OK:
+		_update_http.queue_free()
+		_update_http = null
+
+func _on_update_response(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
+	_update_http.queue_free()
+	_update_http = null
+	if result != HTTPRequest.RESULT_SUCCESS:
+		return
+	save_data["update"]["last_check"] = _today()
+	var latest := UpdateCheck.parse_latest(body.get_string_from_utf8()) if code == 200 else {}
+	if not latest.is_empty() and UpdateCheck.is_newer(String(latest["version"]), UpdateCheck.current_version()):
+		save_data["update"]["latest"] = latest
+	else:
+		save_data["update"]["latest"] = {}
+	_save_now()
+	_refresh_update_badge()
+
+# 小点和提示条只在「确实有更新的版本、且没关掉检查」时出现；装了新版以后自动消失
+func _refresh_update_badge() -> void:
+	var latest: Dictionary = save_data["update"].get("latest", {})
+	var has_update := not is_web and bool(save_data["settings"].get("update_check", true)) 		and UpdateCheck.is_newer(String(latest.get("version", "")), UpdateCheck.current_version())
+	if update_dot:
+		update_dot.visible = has_update
+	if help_button:
+		help_button.tooltip_text = "有新版本 v%s，点开看看" % String(latest.get("version", "")) if has_update else "查看玩法说明"
+	if update_banner:
+		update_banner.visible = has_update
+		if has_update:
+			var notes := String(latest.get("notes", ""))
+			update_label.text = "有新版本 v%s%s" % [String(latest["version"]), "：" + notes if notes != "" else ""]
 
 func _open_ledger_window() -> void:
 	if ledger_window == null:
@@ -856,6 +1163,9 @@ func _render_ledger() -> void:
 	note.add_theme_color_override("font_color", UITheme.INK_FAINT)
 	ledger_body.add_child(note)
 
+	ledger_body.add_child(HSeparator.new())
+	_render_daily_section()
+
 	var sep := HSeparator.new()
 	ledger_body.add_child(sep)
 
@@ -892,6 +1202,46 @@ func _render_ledger() -> void:
 		_goto_aquarium("edit")
 	)
 	ledger_body.add_child(go)
+
+# 档案里的「最近 14 天」与本周合计（每日记录从 v0.7 开始，之前的日子留白）
+func _render_daily_section() -> void:
+	var title := Label.new()
+	title.text = "最近 14 天"
+	title.add_theme_font_size_override("font_size", 15)
+	title.add_theme_color_override("font_color", UITheme.INK)
+	ledger_body.add_child(title)
+
+	var today := _today()
+	var rows := daily_log.recent(today, 14)
+	var chart := DailyChart.new()
+	chart.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	chart.set_rows(rows)
+	ledger_body.add_child(chart)
+
+	var detail := Label.new()
+	detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	detail.add_theme_font_size_override("font_size", 12)
+	detail.add_theme_color_override("font_color", UITheme.INK_SOFT)
+	detail.text = DailyChart.describe(rows[rows.size() - 1])
+	ledger_body.add_child(detail)
+	chart.day_selected.connect(func(row: Dictionary): detail.text = DailyChart.describe(row))
+
+	var week := daily_log.week_totals(today)
+	var week_label := Label.new()
+	week_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	week_label.add_theme_color_override("font_color", UITheme.INK_SOFT)
+	week_label.text = "本周  专注 %d 分钟 · 完成 %d 个任务 · 钓到 %d 条鱼" % [int(week["m"]), int(week["t"]), int(week["fish"])]
+	ledger_body.add_child(week_label)
+
+	# 记录满 14 天以后就不用再解释了
+	var parts := daily_log.since.split("-")
+	if parts.size() == 3 and not bool(rows[0]["recorded"]):
+		var since_note := Label.new()
+		since_note.text = "从 %d月%d日 开始记录，之前的日子没有按天的数据。" % [int(parts[1]), int(parts[2])]
+		since_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		since_note.add_theme_font_size_override("font_size", 12)
+		since_note.add_theme_color_override("font_color", UITheme.INK_FAINT)
+		ledger_body.add_child(since_note)
 
 func _render_collection() -> void:
 	if collection_list == null or fishing_manager == null or eco == null:
@@ -1077,6 +1427,7 @@ func _update_stats() -> void:
 		int(save_data.get("tasks_completed", 0)),
 		fish_total
 	]
+	stats_label.tooltip_text = "今天：%s（拖动这里可以移动窗口）" % stats_label.text
 
 func _save_now() -> void:
 	if save_manager == null:
@@ -1142,6 +1493,32 @@ func _shell_texture() -> ImageTexture:
 				img.set_pixel(x, y, body)
 			elif row[x] == "." and y >= 2 and y <= 4 and x > 0 and x < row.length() - 1:
 				img.set_pixel(x, y, rib)
+	img.resize(img.get_width() * 2, img.get_height() * 2, Image.INTERPOLATE_NEAREST)
+	return ImageTexture.create_from_image(img)
+
+# 顶栏「小窗」图标：一个窗口外框，右下角一小块水色——逐像素生成，和贝壳图标同一做法
+func _mini_icon_texture() -> ImageTexture:
+	var rows := [
+		"###########",
+		"#.........#",
+		"#.........#",
+		"#.........#",
+		"#....OOOOO#",
+		"#....OOOOO#",
+		"#....OOOOO#",
+		"###########",
+	]
+	var frame := Color(UITheme.INK_ON_CHROME, 0.85)
+	var water := Color(0.36, 0.72, 0.80)
+	var img := Image.create(rows[0].length(), rows.size(), false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	for y in range(rows.size()):
+		var row: String = rows[y]
+		for x in range(row.length()):
+			if row[x] == "#":
+				img.set_pixel(x, y, frame)
+			elif row[x] == "O":
+				img.set_pixel(x, y, water)
 	img.resize(img.get_width() * 2, img.get_height() * 2, Image.INTERPOLATE_NEAREST)
 	return ImageTexture.create_from_image(img)
 

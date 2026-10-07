@@ -12,6 +12,7 @@ const POND_SHEEN := Color(0.36, 0.72, 0.80)
 const RIPPLE_COLOR := Color(0.82, 0.94, 0.93, 0.70)
 const FISH_SHADOW := Color(0.10, 0.34, 0.43, 0.40)
 const HOVER_TINT := Color(1.0, 0.96, 0.62, 0.16)
+const STATUS_INK := Color(0.15, 0.20, 0.24)
 
 var status_label: Label
 var fishing_active := false
@@ -21,7 +22,9 @@ var tree_stage := 0
 var growth_points := 0
 var water_frame := 0.0
 var reward_flash := 0.0
+var rested := false
 var anim_timer: Timer
+var _status_ink := STATUS_INK
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
@@ -60,6 +63,8 @@ func set_fishing_active(active: bool) -> void:
 
 func set_activity_state(timer_state: String) -> void:
 	fishing_active = timer_state == "focusing"
+	if timer_state == "focusing":
+		rested = false
 	if status_label:
 		match timer_state:
 			"focusing":
@@ -69,8 +74,12 @@ func set_activity_state(timer_state: String) -> void:
 			"paused":
 				status_label.text = "时间暂停中"
 			_:
-				status_label.text = "点击池塘甩杆"
+				status_label.text = "休息好了，点池塘再甩一杆" if rested else "点击池塘甩杆"
 	queue_redraw()
+
+# 休息结束（计时器随后回到待机）：待机时的提示换成「休息好了」，直到下一次甩杆
+func mark_rested() -> void:
+	rested = true
 
 func update_tree_visual(stage: int, forest_count: int = 0) -> void:
 	tree_stage = int(clamp(stage, 0, 3))
@@ -99,12 +108,21 @@ func _on_anim_tick() -> void:
 	water_frame = fmod(water_frame + 1.0, LOOP)
 	if reward_flash > 0.0:
 		reward_flash = max(reward_flash - 0.1, 0.0)
+	# 夜里状态文字换成浅色，不然压在夜空上看不清
+	if status_label:
+		var ink := DayCycle.ink_for(DayCycle.night, STATUS_INK)
+		if not ink.is_equal_approx(_status_ink):
+			_status_ink = ink
+			status_label.add_theme_color_override("font_color", ink)
 	queue_redraw()
 
 func _draw() -> void:
 	var w := size.x
 	var h := size.y
-	draw_rect(Rect2(Vector2.ZERO, size), Color(0.78, 0.89, 0.86))
+	var night := DayCycle.night
+	draw_rect(Rect2(Vector2.ZERO, size), DayCycle.sky)
+	if night > 0.05:
+		_draw_night_sky(w, h, night)
 	draw_rect(Rect2(Vector2(0, h * 0.62), Vector2(w, h * 0.38)), Color(0.42, 0.66, 0.43))
 	draw_rect(Rect2(Vector2(0, h * 0.72), Vector2(w, h * 0.28)), Color(0.33, 0.55, 0.36))
 	_draw_clouds(w)
@@ -113,6 +131,31 @@ func _draw() -> void:
 	_draw_fisher(w, h)
 	_draw_tree(w, h)
 	_draw_grass(w, h)
+	# 昼夜：整体压一层天色，再把夜里的光源（工位上亮着的显示器）画在最上层
+	if DayCycle.overlay.a > 0.0:
+		draw_rect(Rect2(Vector2.ZERO, size), DayCycle.overlay)
+	if night > 0.05:
+		_draw_monitor_glow(w, h, night)
+
+# 星星和月亮：画在天空里，随后被夜色遮罩压暗一点，像隔着一层夜气
+func _draw_night_sky(w: float, h: float, night: float) -> void:
+	var phase := water_frame / LOOP * TAU
+	for i in range(16):
+		var sx := fmod(i * 97.0 + 23.0, w)
+		var sy := 8.0 + fmod(i * 37.0, h * 0.30)
+		var twinkle := 0.55 + 0.45 * sin(phase * 3.0 + i * 1.7)
+		_pixel_rect(Vector2(sx, sy), Vector2(2, 2), Color(1.0, 0.97, 0.85, night * twinkle))
+	# 弯月：放在池塘上方偏右的空天里（右上角会被树冠挡住）；先画满月，再用天色盖掉一角
+	var moon := Vector2(w * 0.62, 10.0)
+	_pixel_rect(moon, Vector2(12, 12), Color(0.98, 0.94, 0.78, night))
+	_pixel_rect(moon + Vector2(4, -2), Vector2(10, 11), Color(DayCycle.sky, night))
+
+# 夜里还在甩竿的人，屏幕也亮着
+func _draw_monitor_glow(w: float, h: float, night: float) -> void:
+	var screen := Rect2((Vector2(w * 0.12, h * 0.60) + Vector2(30, -20)).round(), Vector2(34, 14))
+	draw_rect(screen.grow(7.0), Color(0.55, 0.80, 0.95, 0.10 * night))
+	draw_rect(screen.grow(3.0), Color(0.55, 0.80, 0.95, 0.16 * night))
+	draw_rect(screen, Color(0.62, 0.86, 0.96, night))
 
 func _draw_clouds(w: float) -> void:
 	# 云层向右匀速漂移，按 span 取模并画两份（相隔一个 span），

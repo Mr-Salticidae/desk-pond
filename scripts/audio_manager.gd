@@ -7,6 +7,7 @@ const A_CHIME := preload("res://assets/audio/chime.wav")
 const A_CAST := preload("res://assets/audio/cast.wav")
 const A_CATCH := preload("res://assets/audio/catch.wav")
 const A_TASK := preload("res://assets/audio/task_done.wav")
+const A_BREAK_END := preload("res://assets/audio/break_end.wav")
 
 const AMBIENT_DB := -16.0
 const SFX_DB := -7.0
@@ -71,6 +72,10 @@ func play_catch() -> void:
 
 func play_task_done() -> void:
 	_play(A_TASK, 0.98, 1.05)
+
+# 休息结束：比专注结束更轻的「叮—咚」，提醒可以回来甩杆了
+func play_break_end() -> void:
+	_play(A_BREAK_END)
 
 # 投喂：借用甩杆的入水声，调高音调变成轻轻的「扑通」
 func play_feed() -> void:

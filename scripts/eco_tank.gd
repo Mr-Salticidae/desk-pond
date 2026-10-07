@@ -45,6 +45,8 @@ var fish_by_id: Dictionary = {}
 var fish_order: Array = []
 
 var state: Dictionary = {}
+# 每笔贝壳入账后回调 (amount)：所有来源（专注、任务、珍珠、访客谢礼……）都经过 earn()，每日记录在这里集中记账
+var on_earn: Callable
 
 func _init() -> void:
 	_load_catalog()
@@ -144,6 +146,8 @@ func earn(amount: int) -> int:
 		return 0
 	state["shells"] = shells() + amount
 	state["shells_earned"] = int(state.get("shells_earned", 0)) + amount
+	if on_earn.is_valid():
+		on_earn.call(amount)
 	return amount
 
 func _spend(amount: int) -> bool:

@@ -82,6 +82,8 @@ var edit_mode := false
 # 只读展示（朋友的缸 / 分享卡片）：不能布置、没有珍珠、不开生态报告；喂鱼、点鱼照常
 var read_only := false
 var show_hud := true
+# 跟随昼夜（水色变深、萤光水母发光、加班鳗鱼夜里更勤）。分享卡片是一张「照片」，关掉保持白天
+var use_day_cycle := true
 var selected_uid := -1
 var hover_uid := -1
 var dragging := false
@@ -467,6 +469,10 @@ func _update_agents(dt: float) -> void:
 		var p: Vector2 = zone.position + a.pos * zone.size
 		var goal := p
 		var max_speed: float = a.speed * ps
+		# 加班鳗鱼是夜猫子：夜里游得更快、换方向更勤
+		if a.kind == "overtime_eel" and use_day_cycle:
+			max_speed *= 1.0 + 0.6 * DayCycle.night
+			a.retarget -= dt * DayCycle.night
 		var food_i := -1
 		if a.flee > 0.0:
 			a.flee -= dt
@@ -738,6 +744,8 @@ func _draw() -> void:
 	if eco != null:
 		_draw_scene(water)
 	_draw_food()
+	if use_day_cycle and DayCycle.overlay.a > 0.0:
+		_draw_night(water)
 	if not edit_mode and not read_only:
 		_draw_pearls(water)
 	_draw_bubbles(water)
@@ -752,6 +760,24 @@ func _draw() -> void:
 		_draw_hud()
 	_draw_name_tag(water)
 	_draw_floats()
+
+# 昼夜：只压暗水体（缸在室内，比池塘暗得少；布置时再减半，好看清摆件）。
+# 珍珠、气泡画在这层之后，夜里反而更显眼；萤光水母在夜里亮起一圈光晕。
+func _draw_night(water: Rect2) -> void:
+	var shade := DayCycle.overlay
+	shade.a *= 0.4 if edit_mode else 0.8
+	draw_rect(water, shade)
+	var night := DayCycle.night
+	if night <= 0.05:
+		return
+	var zone := _swim_rect(water)
+	for a in agents:
+		if a.kind != "jellyfish":
+			continue
+		var c := _agent_center(a, water, zone)
+		var r := 12.0 * _agent_scale(a)
+		draw_circle(c, r * 1.6, Color(0.70, 0.95, 1.0, 0.07 * night))
+		draw_circle(c, r, Color(0.70, 0.95, 1.0, 0.12 * night))
 
 func _draw_tank(water: Rect2) -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), TANK_BG)

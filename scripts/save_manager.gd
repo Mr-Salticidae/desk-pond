@@ -33,6 +33,14 @@ func get_default_save() -> Dictionary:
 		"eco": EcoTank.default_state(),
 		"tree_growth_points": 0,
 		"tree_stage": 0,
+		# 每日记录（只增不减），结构见 DailyLog；daily_since = 开始记录的那天，之前的日子没有数据
+		"daily": {},
+		"daily_since": "",
+		# 新版本检查：上次检查的日期、查到的最新版本（{version, url, notes}，没有更新时为空）
+		"update": {
+			"last_check": "",
+			"latest": {}
+		},
 		"tasks": [],
 		"fish_count": {
 			"slacking_crucian": 0,
@@ -54,7 +62,17 @@ func get_default_save() -> Dictionary:
 			"muted": false,
 			"count_up": false,
 			# 桌面窗口大小 [宽, 高]，空 = 默认 640×520
-			"window_size": []
+			"window_size": [],
+			# 角落小窗：是否处于小窗、小窗位置、进小窗前完整窗口的位置（[x, y]，空 = 未记录）
+			"mini": {
+				"on": false,
+				"pos": [],
+				"full_pos": []
+			},
+			# 昼夜："auto" 跟随本地时间 / "day" 一直白天
+			"day_cycle": "auto",
+			# 桌面版启动时检查新版本
+			"update_check": true
 		}
 	}
 

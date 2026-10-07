@@ -37,8 +37,13 @@
 - 桌面版窗口可拖动右边 / 下边 / 右下角调整大小：内容等比放大，比例不同时多出来的空间留给场景；下次打开记住大小。
 - **分享**：一键生成生态缸卡片图（缸名、星级、鱼和访客，B站 App 内附二维码），分享 / 存相册 / 复制链接，不用再手动截图。朋友点开链接直接逛你的缸、帮你喂鱼，不需要账号或服务器；电脑版也能粘贴分享码去朋友家看看。
 - 成长档案，只增不减；应用开着跨过午夜也会自动换天（重置今日计数、结转未完成的任务）。
+- **每日记录**：每天记一行（专注分钟、番茄数、完成的任务、贝壳、钓到的鱼），档案里看最近 14 天的小柱图和本周合计。不做连胜，空白的日子不标红。
+- **角落小窗**（桌面版）：顶栏小窗图标把池塘缩成屏幕角落的一条（300×84，自动置顶），计时和甩杆都在上面；小窗里专注完成冒一个气泡，展开时补看完整奖励。
+- **到点提醒**：专注结束、休息结束时窗口不在前台，任务栏按钮会闪一下（macOS 是 Dock 图标跳动）；休息结束也会轻轻响一声。
+- **昼夜**：池塘、森林和水族馆跟着本地时间换天色（清晨 / 白天 / 黄昏 / 夜晚），夜里有星星、亮着的显示器和萤火虫。只改画面，不锁内容；玩法说明底部可以改成「一直白天」。
+- **新版本提示**（桌面版）：启动时从 tiaozhuxiansheng.com 读一个版本号文件，有新版就在「?」上亮个小点。不上传任何数据、不自动下载，可在玩法说明底部关掉。
 - 轻量环境水声与事件音效，顶栏「声 / 静」一键开关。
-- 本地保存每日任务、番茄数、鱼类收藏、树成长、计时方式、声音、窗口置顶与窗口大小设置。
+- 本地保存每日任务、番茄数、鱼类收藏、树成长、每日记录、计时方式、声音、窗口置顶、窗口大小、小窗位置与昼夜设置。
 
 ## 运行方式
 
@@ -60,6 +65,13 @@
 # 番茄钟（倒计时 / 正计时）与桌面布局（各房间、各窗口大小下控制台都不超出窗口）测试
 & 'C:\Program Files (x86)\Steam\steamapps\common\Godot Engine\godot.windows.opt.tools.64.exe' --headless --path 'C:\工位池塘' --script tests/test_timer.gd
 & 'C:\Program Files (x86)\Steam\steamapps\common\Godot Engine\godot.windows.opt.tools.64.exe' --headless --path 'C:\工位池塘' --script tests/test_layout.gd
+# v0.7：每日记录、角落小窗与到点提醒、昼夜、新版本提示（不联网）
+& 'C:\Program Files (x86)\Steam\steamapps\common\Godot Engine\godot.windows.opt.tools.64.exe' --headless --path 'C:\工位池塘' --script tests/test_daily.gd
+& 'C:\Program Files (x86)\Steam\steamapps\common\Godot Engine\godot.windows.opt.tools.64.exe' --headless --path 'C:\工位池塘' --script tests/test_mini.gd
+& 'C:\Program Files (x86)\Steam\steamapps\common\Godot Engine\godot.windows.opt.tools.64.exe' --headless --path 'C:\工位池塘' --script tests/test_day_cycle.gd
+& 'C:\Program Files (x86)\Steam\steamapps\common\Godot Engine\godot.windows.opt.tools.64.exe' --headless --path 'C:\工位池塘' --script tests/test_update.gd
+# 固定在某个钟点看昼夜效果（例：晚上九点半）
+& 'C:\Program Files (x86)\Steam\steamapps\common\Godot Engine\godot.windows.opt.tools.64.exe' --path 'C:\工位池塘' -- --hour=21.5
 # 在桌面上预览手机布局（390×844，模拟刘海与手势条）
 & 'C:\Program Files (x86)\Steam\steamapps\common\Godot Engine\godot.windows.opt.tools.64.exe' --path 'C:\工位池塘' -- --web-layout --web-size=390x844 --safe-area=44,0,34,0
 ```
@@ -70,6 +82,7 @@
 - 在左侧调整专注和休息分钟数，开始后设置会锁定。
 - 钓竿右上角切换「倒计时 / 正计时」；正计时专注中主按钮变成「收竿」，点它结算（不满 1 分钟算空竿）。
 - 桌面版拖窗口的右边、下边或右下角手柄调整大小。
+- 顶栏小窗图标进入角落小窗；小窗整条都能拖动，点「展开」或双击回到完整窗口。
 - 在右侧写下今日任务，勾选完成后小树成长。
 - 点“展开”打开完整代办清单。
 - 顶栏的贝壳数可直接打开水族商店。
@@ -78,4 +91,5 @@
 - 点缸左上角的星级查看生态报告（氧气、水质、美观、生机与建议）。
 - 水族馆右上角“分享”：给缸起名、生成卡片，分享 / 保存图片 / 复制链接；下方粘贴朋友的分享码或链接可以去他家看看。
   - 电脑版分享默认给「分享码 + 说明」；把 `scripts/eco_share.gd` 里的 `SHARE_WEB_URL` 填成 B站 Toy 页面地址后，会改为可点开的链接。
-- 点“?”查看玩法说明。设计思路见 `docs/设计_生态缸.md`。
+- 点“?”查看玩法说明；底部有「昼夜跟随本地时间」「启动时检查新版本」两个开关。
+- 设计思路见 `docs/设计_生态缸.md`、`docs/设计_v0.7_小窗与昼夜.md`。

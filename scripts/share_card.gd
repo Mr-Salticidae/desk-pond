@@ -90,6 +90,8 @@ func _build_card() -> void:
 	card_summary = _card_label(root, 15, INK_SOFT, Vector2(34, 102))
 
 	card_tank = AquariumView.new()
+	# 卡片是一张「照片」：不管几点生成都是白天的样子，朋友收到的图和白天看到的一致
+	card_tank.use_day_cycle = false
 	card_tank.position = Vector2(20, 148)
 	card_tank.size = Vector2(560, 500)
 	root.add_child(card_tank)
