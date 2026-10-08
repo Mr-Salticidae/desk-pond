@@ -106,10 +106,28 @@ func _test_reward_in_mini() -> void:
 	_check(not main.reward_popup.visible, "小窗里专注完成不弹完整奖励窗")
 	_check(main.mini_bar.toast_panel.visible and main.mini_bar.toast_label.text.begins_with("钓到「"), "小窗里冒报喜气泡：%s" % main.mini_bar.toast_label.text)
 	_check(main.mini_bar.toast_label.text.find("贝壳") >= 0, "气泡里带上贝壳数")
+	_check_toast_fits("真实钓获")
+	# 鱼名最长的那种、以及一个故意超长的字符串：都要折行留在水面里（v0.7.0 一行写完，盖住了「休息中」）
+	main.mini_bar.show_toast("钓到「通勤沙丁鱼」\n+5 贝壳")
+	await _settle()
+	_check_toast_fits("最长鱼名")
+	main.mini_bar.show_toast("钓到「" + "特别特别长的名字".repeat(3) + "」  +24 贝壳")
+	await _settle()
+	_check_toast_fits("超长文字（折行）")
 	main.pomodoro_panel.reset_timer()
 	main._on_focus_completed()
 	_check(main._pending_rewards.size() == 2, "两次收获都记下，等展开时补弹")
 	main.pomodoro_panel.reset_timer()
+
+# 气泡只占左边水面：右边缘不超过水面宽度，也不压到右边的状态文字和计时数字
+func _check_toast_fits(where: String) -> void:
+	var bar = main.mini_bar
+	var toast: Rect2 = bar.toast_panel.get_global_rect()
+	var scene_right: float = bar.get_global_rect().position.x + bar.SCENE_W
+	_check(toast.end.x <= scene_right + 0.5, "%s：气泡右边缘 %.1f 不超出水面（%.1f）" % [where, toast.end.x, scene_right])
+	for l in [bar.status_label, bar.time_label]:
+		_check(not toast.intersects(l.get_global_rect()), "%s：气泡不压到「%s」" % [where, l.text])
+	_check(toast.end.y <= bar.get_global_rect().end.y + 0.5, "%s：气泡不超出小窗底边（%.1f）" % [where, toast.end.y])
 
 func _test_break_end_reminder() -> void:
 	var p = main.pomodoro_panel

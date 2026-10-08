@@ -132,6 +132,7 @@ func _build_ui() -> void:
 	add_child(toast_panel)
 	toast_label = Label.new()
 	toast_label.add_theme_font_size_override("font_size", 12)
+	toast_label.max_lines_visible = 3   # 折行最多 3 行，再长也不超出 84 高的小窗
 	toast_label.add_theme_color_override("font_color", UITheme.INK_ON_CHROME)
 	toast_panel.add_child(toast_label)
 
@@ -183,11 +184,21 @@ func _on_action() -> void:
 			pomodoro.start_focus()
 	refresh()
 
+## 气泡只占左边的水面：比水面宽就在水面宽度内折行，不盖住右边的状态和计时
+## （v0.7.0 一行写完「钓到「周报河豚」 +5 贝壳」，盖住了「休息中」的「休」字）
 func show_toast(text: String, seconds := 3.0) -> void:
 	flash = 1.0
 	toast_label.text = text
+	toast_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	toast_label.custom_minimum_size = Vector2.ZERO
 	toast_panel.visible = true
 	toast_panel.reset_size()
+	var max_w := SCENE_W - toast_panel.position.x - 6.0
+	if toast_panel.size.x > max_w:
+		var pad := toast_panel.size.x - toast_label.get_combined_minimum_size().x
+		toast_label.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+		toast_label.custom_minimum_size = Vector2(max_w - pad, 0)
+		toast_panel.reset_size()
 	_toast_left = seconds
 
 func _on_tick() -> void:

@@ -501,7 +501,7 @@ func _on_focus_completed() -> void:
 	if in_mini:
 		# 小窗里不弹完整奖励窗：冒一个 3 秒的气泡，展开时再补弹
 		var shell_note := String(extras[0]) if not extras.is_empty() and String(extras[0]).begins_with("+") else ""
-		mini_bar.show_toast("钓到「%s」%s" % [String(fish.get("name", "小鱼")), "  " + shell_note if shell_note != "" else ""])
+		mini_bar.show_toast("钓到「%s」%s" % [String(fish.get("name", "小鱼")), "\n" + shell_note if shell_note != "" else ""])
 		_pending_rewards.append({"fish": fish, "extras": extras})
 	else:
 		reward_popup.show_reward(fish, extras)
