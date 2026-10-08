@@ -36,6 +36,7 @@ var water_frame := 0.0
 var reward_flash := 0.0
 var rested := false
 var anim_timer: Timer
+var _shade := Color(0, 0, 0, 0)   # 本帧的夜色遮罩，_draw 里取自 DayCycle
 var _status_ink := STATUS_INK
 
 func _ready() -> void:
@@ -140,14 +141,24 @@ func _draw() -> void:
 	_draw_clouds(w)
 	_draw_pond(w, h)
 	_draw_desk(w, h)
-	_draw_fisher(w, h)
 	_draw_tree(w, h)
 	_draw_grass(w, h)
-	# 昼夜：整体压一层天色，再把夜里的光源（工位上亮着的显示器）画在最上层
-	if DayCycle.overlay.a > 0.0:
-		draw_rect(Rect2(Vector2.ZERO, size), DayCycle.overlay)
+	# 昼夜：整体压一层天色，再把夜里的光源（工位上亮着的显示器）画在遮罩之上。
+	# 钓鱼人最后画，自己叠上同一层夜色（_lit）：窄屏（手机 400 宽）时人站在显示器前面，
+	# 先画人再画亮光，亮着的屏幕就会盖住人。
+	_shade = DayCycle.overlay
+	if _shade.a > 0.0:
+		draw_rect(Rect2(Vector2.ZERO, size), _shade)
 	if night > 0.05:
 		_draw_monitor_glow(w, h, night)
+	_draw_fisher(w, h)
+
+# 画在夜色遮罩之后的东西，颜色自己叠上同一层遮罩，看起来和被遮罩压过一样
+# （只把颜色往遮罩色拉、保留自身透明度：半透明的鱼线照样半透明）
+func _lit(c: Color) -> Color:
+	if _shade.a <= 0.0:
+		return c
+	return c.lerp(Color(_shade.r, _shade.g, _shade.b, c.a), _shade.a)
 
 # 星星和月亮：画在天空里，随后被夜色遮罩压暗一点，像隔着一层夜气
 func _draw_night_sky(w: float, h: float, night: float) -> void:
@@ -228,17 +239,17 @@ func _draw_desk(w: float, h: float) -> void:
 
 func _draw_fisher(w: float, h: float) -> void:
 	var p := Vector2(w * 0.24, h * 0.56)
-	_pixel_rect(p + Vector2(0, -30), Vector2(18, 18), Color(0.98, 0.76, 0.54))
-	_pixel_rect(p + Vector2(-5, -36), Vector2(28, 8), Color(0.20, 0.28, 0.30))
-	_pixel_rect(p + Vector2(-4, -12), Vector2(28, 30), Color(0.84, 0.36, 0.27))
-	_pixel_rect(p + Vector2(0, 18), Vector2(8, 20), Color(0.16, 0.25, 0.31))
-	_pixel_rect(p + Vector2(18, 18), Vector2(8, 20), Color(0.16, 0.25, 0.31))
+	_pixel_rect(p + Vector2(0, -30), Vector2(18, 18), _lit(Color(0.98, 0.76, 0.54)))
+	_pixel_rect(p + Vector2(-5, -36), Vector2(28, 8), _lit(Color(0.20, 0.28, 0.30)))
+	_pixel_rect(p + Vector2(-4, -12), Vector2(28, 30), _lit(Color(0.84, 0.36, 0.27)))
+	_pixel_rect(p + Vector2(0, 18), Vector2(8, 20), _lit(Color(0.16, 0.25, 0.31)))
+	_pixel_rect(p + Vector2(18, 18), Vector2(8, 20), _lit(Color(0.16, 0.25, 0.31)))
 	if fishing_active:
 		var rod_end := Vector2(w * 0.45, h * 0.48 + sin(water_frame / LOOP * TAU * 4.0) * 5.0)
-		draw_line(p + Vector2(24, -12), rod_end, Color(0.22, 0.17, 0.12), 3.0)
-		draw_line(rod_end, rod_end + Vector2(0, 38), Color(0.12, 0.18, 0.19, 0.55), 1.0)
+		draw_line(p + Vector2(24, -12), rod_end, _lit(Color(0.22, 0.17, 0.12)), 3.0)
+		draw_line(rod_end, rod_end + Vector2(0, 38), _lit(Color(0.12, 0.18, 0.19, 0.55)), 1.0)
 	else:
-		draw_line(p + Vector2(24, -12), p + Vector2(78, -32), Color(0.22, 0.17, 0.12), 3.0)
+		draw_line(p + Vector2(24, -12), p + Vector2(78, -32), _lit(Color(0.22, 0.17, 0.12)), 3.0)
 
 func _draw_tree(w: float, h: float) -> void:
 	var base := Vector2(w * 0.82, h * 0.66)

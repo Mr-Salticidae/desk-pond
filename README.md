@@ -72,6 +72,8 @@
 & 'C:\Program Files (x86)\Steam\steamapps\common\Godot Engine\godot.windows.opt.tools.64.exe' --headless --path 'C:\工位池塘' --script tests/test_update.gd
 # 苹果式控件：步进器、分段控件（替代 SpinBox 和小开关）
 & 'C:\Program Files (x86)\Steam\steamapps\common\Godot Engine\godot.windows.opt.tools.64.exe' --headless --path 'C:\工位池塘' --script tests/test_controls.gd
+# 网页 / 手机版像素字体的缺字检查（字体里没有的字会画成方框）
+& 'C:\Program Files (x86)\Steam\steamapps\common\Godot Engine\godot.windows.opt.tools.64.exe' --headless --path 'C:\工位池塘' --script tests/test_glyphs.gd
 # 固定在某个钟点看昼夜效果（例：晚上九点半）
 & 'C:\Program Files (x86)\Steam\steamapps\common\Godot Engine\godot.windows.opt.tools.64.exe' --path 'C:\工位池塘' -- --hour=21.5
 # 在桌面上预览手机布局（390×844，模拟刘海与手势条）

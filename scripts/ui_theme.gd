@@ -323,7 +323,9 @@ static func make_theme() -> Theme:
 	t.default_font_size = 14
 	# Web 导出没有系统字体可回退，中文会整体缺字；
 	# 打包的缝合像素字体（OFL）只在 Web 上启用，桌面端保持系统字体的既有观感。
-	if OS.has_feature("web"):
+	# 桌面上用 --web-layout 调试手机布局时也换成像素字体：否则截图里的字和真网页版不一样，
+	# 像素字体缺字（v0.7.0 的减号「−」画成方框）在电脑上就看不出来。
+	if OS.has_feature("web") or OS.get_cmdline_user_args().has("--web-layout"):
 		t.default_font = load(PIXEL_FONT)
 	elif OS.get_name() != "Windows":
 		# macOS / Linux：不能指望引擎自动借系统字体补中文——2026-09-29 GitHub Actions macOS 实测，

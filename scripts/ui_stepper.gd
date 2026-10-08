@@ -52,6 +52,15 @@ func _init() -> void:
 	add_child(_repeat)
 	_refresh_text()
 
+# 减号用数学减号「−」（和「+」等宽、居中）；网页 / 手机版打包的像素字体里没有这个字，
+# 会画成方框，所以先问一下实际用的字体，没有就退回普通连字符「-」。
+func _notification(what: int) -> void:
+	if (what == NOTIFICATION_READY or what == NOTIFICATION_THEME_CHANGED) and minus_button and minus_button.is_inside_tree():
+		minus_button.text = minus_glyph(minus_button.get_theme_font("font"))
+
+static func minus_glyph(font: Font) -> String:
+	return "−" if font == null or font.has_char(0x2212) else "-"
+
 func _make_button(text: String, dir: int) -> Button:
 	var b := Button.new()
 	b.text = text
