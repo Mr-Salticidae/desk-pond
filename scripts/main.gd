@@ -139,13 +139,55 @@ func _ready() -> void:
 	else:
 		_maybe_show_intro()
 
-# 第一次打开时自动弹一次玩法说明，之后不再打扰。
+# 第一次打开时提供可跳过的短专注，完整说明仍可从顶栏打开。
 func _maybe_show_intro() -> void:
 	if bool(save_data.get("seen_intro", false)):
 		return
 	save_data["seen_intro"] = true
 	_save_now()
-	call_deferred("_open_help_window")
+	call_deferred("_open_welcome_card")
+
+func _open_welcome_card() -> void:
+	var card := UICard.new()
+	card.configure("工位池塘", Vector2i(368, 240))
+	card.exclusive = true
+	add_child(card)
+	card.visibility_changed.connect(func():
+		if not card.visible:
+			card.queue_free()
+	)
+
+	var title := Label.new()
+	title.text = "你专注，它钓鱼。"
+	title.add_theme_font_size_override("font_size", 19)
+	title.add_theme_color_override("font_color", UITheme.INK)
+	card.body.add_child(title)
+
+	var note := Label.new()
+	note.text = "试着专注 1 分钟，钓来的第一条鱼会游进你的水族馆。之后可以按自己的节奏甩杆。"
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	note.add_theme_color_override("font_color", UITheme.INK_SOFT)
+	note.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	card.body.add_child(note)
+
+	var actions := HBoxContainer.new()
+	actions.alignment = BoxContainer.ALIGNMENT_END
+	actions.add_theme_constant_override("separation", 8)
+	card.body.add_child(actions)
+	var later := Button.new()
+	later.text = "先看看"
+	later.pressed.connect(card.hide)
+	actions.add_child(later)
+	var try_focus := Button.new()
+	try_focus.text = "试钓 1 分钟"
+	UITheme.style_primary(try_focus)
+	try_focus.pressed.connect(func():
+		card.hide()
+		pomodoro_panel.start_intro_focus()
+	)
+	actions.add_child(try_focus)
+	card.popup_centered()
+	try_focus.grab_focus()
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
@@ -449,6 +491,7 @@ func _setup_modules() -> void:
 
 	pomodoro_panel.focus_completed.connect(_on_focus_completed)
 	pomodoro_panel.break_completed.connect(_on_break_completed)
+	reward_popup.aquarium_requested.connect(func(): _goto_aquarium("tank"))
 	pomodoro_panel.state_changed.connect(_on_timer_state_changed)
 	pomodoro_panel.settings_changed.connect(_on_timer_settings_changed)
 	pixel_world.cast_requested.connect(_on_cast_requested)
@@ -498,13 +541,14 @@ func _on_focus_completed() -> void:
 	eco.accrue_pearls(_today())
 
 	pixel_world.play_focus_feedback()
+	var first_catch := int(save_data["total_focus_sessions"]) == 1
 	if in_mini:
 		# 小窗里不弹完整奖励窗：冒一个 3 秒的气泡，展开时再补弹
 		var shell_note := String(extras[0]) if not extras.is_empty() and String(extras[0]).begins_with("+") else ""
 		mini_bar.show_toast("钓到「%s」%s" % [String(fish.get("name", "小鱼")), "\n" + shell_note if shell_note != "" else ""])
-		_pending_rewards.append({"fish": fish, "extras": extras})
+		_pending_rewards.append({"fish": fish, "extras": extras, "first_catch": first_catch})
 	else:
-		reward_popup.show_reward(fish, extras)
+		reward_popup.show_reward(fish, extras, first_catch)
 	Audio.play_chime()
 	get_tree().create_timer(0.28).timeout.connect(Audio.play_catch, CONNECT_ONE_SHOT)
 	_request_attention()
@@ -905,7 +949,7 @@ func _show_pending_rewards() -> void:
 			names.append(String((r["fish"] as Dictionary).get("name", "")))
 		extras.insert(0, "小窗期间一共钓到 %d 条：%s" % [names.size(), "、".join(names)])
 	_pending_rewards.clear()
-	reward_popup.show_reward(last["fish"], extras)
+	reward_popup.show_reward(last["fish"], extras, bool(last.get("first_catch", false)))
 
 # 图鉴已并入水族馆：作为缸内「图鉴」子标签的内容，铺在场景区里。
 func _build_catalog_view() -> void:
@@ -1611,35 +1655,36 @@ func _maybe_show_eco_guide() -> void:
 	eco.state["seen_guide"] = true
 	_save_now()
 	var card := UICard.new()
-	card.configure("生态缸开张啦", Vector2i(400, 400))
+	card.configure("生态缸开张啦", Vector2i(368, 245))
 	add_child(card)
 	eco_guide = card
-	var lines: Array = []
+	var welcome := "钓来的鱼会住在这里。用贝壳买些水草，再点「布置」摆进缸里。"
 	if _eco_back_pay > EcoTank.WELCOME_SHELLS:
-		lines.append("你之前的每一次专注和完成的任务，连同开缸礼，一共折成了 %d 个贝壳。" % _eco_back_pay)
+		welcome = "你之前的专注和完成的任务，连同开缸礼，一共折成了 %d 个贝壳。\n\n" % _eco_back_pay + welcome
 	elif _eco_back_pay > 0:
-		lines.append("送你 %d 个贝壳当开缸礼，先去商店挑点东西吧。" % _eco_back_pay)
-	lines.append_array([
-		"这只缸现在归你布置：点「布置」摆放，点「商店」用贝壳买水草、石头、装饰和小生物。",
-		"左上角的星星是生态评分：氧气和水质要跟得上鱼的数量，美观来自摆件和主题套组。",
-		"星级越高解锁越多；布置出特定的缸，专注完成时还会有访客游进来。",
-		"点水面喂鱼，点鱼看名字，珍珠泡泡点一下就能收下。什么都不会死，放心折腾。",
-	])
-	for line in lines:
-		var l := Label.new()
-		l.text = "·  " + String(line)
-		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		l.add_theme_color_override("font_color", UITheme.INK_SOFT)
-		card.body.add_child(l)
-	var ok := Button.new()
-	ok.text = "去布置"
-	UITheme.style_primary(ok)
-	ok.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	ok.pressed.connect(func():
+		welcome = "给你 %d 个贝壳作开缸礼。\n\n" % _eco_back_pay + welcome
+	var note := Label.new()
+	note.text = welcome
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	note.add_theme_color_override("font_color", UITheme.INK_SOFT)
+	note.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	card.body.add_child(note)
+	var actions := HBoxContainer.new()
+	actions.alignment = BoxContainer.ALIGNMENT_END
+	actions.add_theme_constant_override("separation", 8)
+	card.body.add_child(actions)
+	var later := Button.new()
+	later.text = "先看看"
+	later.pressed.connect(card.hide)
+	actions.add_child(later)
+	var browse_shop := Button.new()
+	browse_shop.text = "去商店"
+	UITheme.style_primary(browse_shop)
+	browse_shop.pressed.connect(func():
 		card.hide()
-		_goto_aquarium("edit")
+		_open_shop()
 	)
-	card.body.add_child(ok)
+	actions.add_child(browse_shop)
 	card.call_deferred("popup_centered")
 
 # ================= 全屏 =================

@@ -15,6 +15,8 @@ const MAX_BREAK_MINUTES = 60
 # 和倒计时的下限 / 上限一致：满 1 分钟才算一次专注，数到 180 分钟自动收竿。
 const COUNT_UP_MIN_SECONDS = MIN_FOCUS_MINUTES * 60
 const COUNT_UP_CAP_SECONDS = MAX_FOCUS_MINUTES * 60
+# 首次打开时的试钓引导时长
+const INTRO_FOCUS_SECONDS = 60
 
 var state := "idle"
 var paused_from_state := "idle"
@@ -70,13 +72,18 @@ func start_focus() -> void:
 		if paused_from_state == "focusing":
 			pause_or_resume()
 			return
-		# 休息中暂停的：视为放弃休息，开启一次全新专注；
-		# 不能沿用剩余的休息秒数，否则几分钟就能白拿一次专注奖励
-		seconds_left = focus_seconds
-		active_duration_seconds = focus_seconds
-	if state == "idle" or state == "completed":
-		seconds_left = focus_seconds
-		active_duration_seconds = focus_seconds
+	# 休息中暂停的：视为放弃休息，开启一次全新专注；
+	# 不能沿用剩余的休息秒数，否则几分钟就能白拿一次专注奖励
+	_begin_focus(focus_seconds)
+
+# 首次打开时的 1 分钟试钓。正计时模式靠手动收竿，不套用这条引导。
+func start_intro_focus() -> void:
+	if state == "idle" and not count_up:
+		_begin_focus(INTRO_FOCUS_SECONDS)
+
+func _begin_focus(duration_seconds: int) -> void:
+	seconds_left = duration_seconds
+	active_duration_seconds = duration_seconds
 	elapsed_seconds = 0
 	_arm_clock()
 	_apply_state("focusing")

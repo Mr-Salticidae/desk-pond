@@ -1,12 +1,15 @@
 extends UICard
 class_name RewardPopup
 
+signal aquarium_requested
+
 var reward_label: Label
 var rarity_label: Label
 var description_label: Label
 var flavor_label: Label
 var extra_label: Label
 var confirm_button: Button
+var aquarium_button: Button
 
 var flavor_texts := [
 	"今天的池塘又热闹了一点。",
@@ -22,7 +25,7 @@ func _ready() -> void:
 	_build_content()
 
 # extras：生态缸带来的附加收获（贝壳、里程碑赠礼、新访客），每条一行
-func show_reward(fish: Dictionary, extras: Array = []) -> void:
+func show_reward(fish: Dictionary, extras: Array = [], first_catch: bool = false) -> void:
 	if reward_label == null:
 		_build_content()
 	reward_label.text = "你钓到了「%s」" % String(fish.get("name", "神秘小鱼"))
@@ -32,6 +35,7 @@ func show_reward(fish: Dictionary, extras: Array = []) -> void:
 	flavor_label.text = flavor_texts.pick_random()
 	extra_label.text = "\n".join(extras)
 	extra_label.visible = not extras.is_empty()
+	aquarium_button.visible = first_catch
 	popup_centered()
 
 func _build_content() -> void:
@@ -61,12 +65,23 @@ func _build_content() -> void:
 	extra_label.custom_minimum_size = Vector2(300, 0)
 	body.add_child(extra_label)
 
+	var actions := HBoxContainer.new()
+	actions.alignment = BoxContainer.ALIGNMENT_CENTER
+	actions.add_theme_constant_override("separation", 8)
+	body.add_child(actions)
 	confirm_button = Button.new()
-	confirm_button.text = "收进图鉴"
-	confirm_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	UITheme.style_primary(confirm_button)
+	confirm_button.text = "收下"
 	confirm_button.pressed.connect(hide)
-	body.add_child(confirm_button)
+	actions.add_child(confirm_button)
+	aquarium_button = Button.new()
+	aquarium_button.text = "去水族馆"
+	aquarium_button.visible = false
+	UITheme.style_primary(aquarium_button)
+	aquarium_button.pressed.connect(func():
+		hide()
+		aquarium_requested.emit()
+	)
+	actions.add_child(aquarium_button)
 
 func _centered_label(font_size: int, color: Color) -> Label:
 	var label := Label.new()
