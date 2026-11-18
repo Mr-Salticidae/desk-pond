@@ -97,9 +97,9 @@ var mini_bar: MiniBar
 var in_mini := false
 var _pending_rewards: Array = []   # 小窗里钓到的鱼，展开时补弹完整奖励
 
-# Web 版（B站 toy / 手机浏览器）：竖屏布局，去掉桌面窗口专属功能。
+# 手机版（Web / 安卓 APK）：竖屏布局，去掉桌面窗口专属功能。
 # 桌面端调试手机布局：godot --path . -- --web-layout [--web-size=390x844] [--safe-area=44,0,34,0]
-var is_web := OS.has_feature("web") or OS.get_cmdline_user_args().has("--web-layout")
+var is_web := OS.has_feature("web") or OS.has_feature("android") or OS.get_cmdline_user_args().has("--web-layout")
 const WEB_DESIGN_SIZE := Vector2i(400, 720)
 # 可见宽度达到这个值（平板横屏 / 桌面浏览器）时，控制台改回左右并排
 const WEB_WIDE_LAYOUT := 600.0
@@ -107,6 +107,7 @@ const WEB_WIDE_LAYOUT := 600.0
 var bottom_box: BoxContainer
 
 func _ready() -> void:
+	UITheme.mobile_layout = is_web
 	if is_web:
 		get_window().content_scale_size = WEB_DESIGN_SIZE
 		# 全面屏：按设计宽度铺满任意长宽比，多出来的高度留给场景（缸更高），不再上下留黑边

@@ -45,6 +45,10 @@ func _ready() -> void:
 		JavaScriptBridge.eval(_JS_SHARE, true)
 		JavaScriptBridge.eval(_JS_SETUP, true)
 		get_tree().root.size_changed.connect(_recompute)
+	elif OS.has_feature("android"):
+		# 安卓全面屏：用系统安全区换算出刘海 / 手势条占位，再换算成设计坐标
+		get_tree().root.size_changed.connect(_recompute_android)
+		_recompute_android()
 	else:
 		for arg in OS.get_cmdline_user_args():
 			if arg.begins_with("--safe-area="):
@@ -141,6 +145,24 @@ func _recompute() -> void:
 	var next := {}
 	for side in ["top", "right", "bottom", "left"]:
 		next[side] = roundf(float(_css.get(side, 0.0)) * k)
+	if next != insets:
+		insets = next
+		safe_area_changed.emit(insets)
+
+# 安卓：系统安全区（刘海 / 挖孔 / 手势条）换算成设计坐标，口径与 Web 的 CSS env 一致
+func _recompute_android() -> void:
+	var win_px := Vector2(get_window().size)
+	if win_px.x <= 0.0 or win_px.y <= 0.0:
+		return
+	var k := get_tree().root.get_visible_rect().size.x / win_px.x
+	var safe := DisplayServer.get_display_safe_area()
+	var screen := Vector2(DisplayServer.screen_get_size())
+	var next := {
+		"top": roundf(maxf(0.0, float(safe.position.y)) * k),
+		"left": roundf(maxf(0.0, float(safe.position.x)) * k),
+		"right": roundf(maxf(0.0, screen.x - float(safe.position.x + safe.size.x)) * k),
+		"bottom": roundf(maxf(0.0, screen.y - float(safe.position.y + safe.size.y)) * k),
+	}
 	if next != insets:
 		insets = next
 		safe_area_changed.emit(insets)

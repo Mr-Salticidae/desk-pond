@@ -1,6 +1,10 @@
 extends RefCounted
 class_name UITheme
 
+# 手机竖屏布局（Web / 安卓 APK）：由 main 在启动时按 is_web 写入。
+# 弹窗尺寸等需要知道「当前是不是窄屏」，这样桌面用 --web-layout 预览时与真机一致。
+static var mobile_layout := false
+
 # 极简调色板：温润纸面 + 墨色文字 + 一抹陶土暖色。
 # 设计意图：让 UI 外壳后退，把视觉重心留给像素池塘。
 const BG_DEEP := Color(0.114, 0.149, 0.161)        # 应用最底层背景
@@ -325,7 +329,7 @@ static func make_theme() -> Theme:
 	# 打包的缝合像素字体（OFL）只在 Web 上启用，桌面端保持系统字体的既有观感。
 	# 桌面上用 --web-layout 调试手机布局时也换成像素字体：否则截图里的字和真网页版不一样，
 	# 像素字体缺字（v0.7.0 的减号「−」画成方框）在电脑上就看不出来。
-	if OS.has_feature("web") or OS.get_cmdline_user_args().has("--web-layout"):
+	if OS.has_feature("web") or OS.has_feature("android") or OS.get_cmdline_user_args().has("--web-layout"):
 		t.default_font = load(PIXEL_FONT)
 	elif OS.get_name() != "Windows":
 		# macOS / Linux：不能指望引擎自动借系统字体补中文——2026-09-29 GitHub Actions macOS 实测，

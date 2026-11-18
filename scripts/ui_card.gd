@@ -10,8 +10,8 @@ var _dragging := false
 
 func configure(card_title: String, card_size: Vector2i) -> void:
 	title = card_title
-	# Web 竖屏视口只有 400×720，桌面尺寸的卡片会超出可见区，统一收进安全范围。
-	if OS.has_feature("web"):
+	# 手机竖屏视口只有 400×720（Web / 安卓），桌面尺寸的卡片会超出可见区，统一收进安全范围。
+	if UITheme.mobile_layout or OS.has_feature("web") or OS.has_feature("android"):
 		card_size = Vector2i(mini(card_size.x, 384), mini(card_size.y, 560))
 	size = card_size
 	borderless = true
