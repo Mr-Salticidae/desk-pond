@@ -11,6 +11,7 @@ const MIN_FOCUS_MINUTES = 1
 const MAX_FOCUS_MINUTES = 180
 const MIN_BREAK_MINUTES = 1
 const MAX_BREAK_MINUTES = 60
+const INTRO_FOCUS_SECONDS = 60
 
 var state := "idle"
 var paused_from_state := "idle"
@@ -56,15 +57,19 @@ func start_focus() -> void:
 		if paused_from_state == "focusing":
 			pause_or_resume()
 			return
-		# 休息中暂停的：视为放弃休息，开启一次全新专注；
-		# 不能沿用剩余的休息秒数，否则几分钟就能白拿一次专注奖励
-		seconds_left = focus_seconds
-		active_duration_seconds = focus_seconds
-	if state == "idle" or state == "completed":
-		seconds_left = focus_seconds
-		active_duration_seconds = focus_seconds
+	# 从暂停的休息开始也使用完整专注时长。
+	_begin_focus(focus_seconds)
+
+func start_intro_focus() -> void:
+	if state == "idle":
+		_begin_focus(INTRO_FOCUS_SECONDS)
+
+func _begin_focus(duration_seconds: int) -> void:
+	seconds_left = duration_seconds
+	active_duration_seconds = duration_seconds
 	_deadline_unix = Time.get_unix_time_from_system() + seconds_left
 	_apply_state("focusing")
+	_update_time_label()
 	countdown_timer.start()
 
 func pause_or_resume() -> void:
