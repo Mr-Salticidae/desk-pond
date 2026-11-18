@@ -75,12 +75,22 @@ func _save(name: String, scale := 1) -> void:
 
 func _make_logo() -> void:
 	await _begin(1280, 720)
-	# 透明底：窗口背景透明 + 清屏透明，只留标题
+	# 透明底：窗口背景透明 + 清屏透明，只留图标 + 名称
+	# 机审要求「LOGO 主体占画布 60% 以上」：图标 512（占高 71%）+ 右侧名称，整体宽约 83%
 	get_window().transparent_bg = true
 	RenderingServer.set_default_clear_color(Color(0, 0, 0, 0))
-	var title := _label("工位池塘", 150, UITheme.INK, Vector2(0, 270))
-	title.size = Vector2(1280, 0)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var icon_size := 512
+	var src := Image.load_from_file(ProjectSettings.globalize_path("res://assets/icon.png"))
+	if src != null:
+		# 源图 256，整数 2 倍最近邻放大，像素边不出毛刺
+		src.resize(icon_size, icon_size, Image.INTERPOLATE_NEAREST)
+		var tr := TextureRect.new()
+		tr.texture = ImageTexture.create_from_image(src)
+		tr.position = Vector2(116, 104)
+		tr.size = Vector2(icon_size, icon_size)
+		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		_root.add_child(tr)
+	_label("工位池塘", 124, UITheme.INK, Vector2(672, 286))
 	await _save("logo-1280x720")
 
 func _make_cover() -> void:
