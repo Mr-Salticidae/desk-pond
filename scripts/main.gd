@@ -107,6 +107,9 @@ const WEB_WIDE_LAYOUT := 600.0
 var bottom_box: BoxContainer
 
 func _ready() -> void:
+	# 商店标题与包体解析名统一用中文；config/name 保持 "Desk Pond" 不动，
+	# 否则 user:// 存档目录会改名，自有站老用户的进度会读不到。
+	get_window().title = "工位池塘"
 	UITheme.mobile_layout = is_web
 	if is_web:
 		get_window().content_scale_size = WEB_DESIGN_SIZE
